@@ -8,7 +8,6 @@ from panel import widgets as pnw
 pn.extension(notifications=True)
 
 
-
 """
 GUI Class handles the creation and utilisation of the user interface
 """
