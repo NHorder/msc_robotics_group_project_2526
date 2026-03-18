@@ -125,7 +125,7 @@ class GUI():
             pn.Row(action_location_string,action_location),
             confirm_button
         )
-
+        
         base = pnl.GridSpec(sizing_mode="stretch_both",)
         base[0:1,0:2] = creation_area # Action creation info
         base[0:,2:4] = pn.Spacer(styles=dict(background='green')) # Room Plan (With labeled walls)
