@@ -89,9 +89,6 @@ class GUI():
         if value == "Mobile Base": return robot_base
         else: return manipulator_arm
  
-
-
- 
     def _CreateActionScreen(self):
         # Maybe change the layout, such that the current creation-area displays all
         # actions, then the dark blue 
@@ -107,35 +104,44 @@ class GUI():
         # Then it should be fine, adding a new action or saving a new action
         # Can also do the image display (at least, not the wall selection or anything yet, that needs more processing)
 
-        house_string = pnp.Markdown("Select A House Plan",styles={'font-size': '11pt'})
-        house_plan = pnw.FileInput(accept='.png')
-        action_name = pnw.TextInput(name="Action Name:",placeholder="Action X")
-        room_select = pnw.Select(name="Select Room",options = ["Living Room","Bedroom 1","Need to replace at later date"])
-        wall_select = pnw.Select(name="Select Wall to Paint",options = [1,2,3,4])
-        action_location_string = pnp.Markdown("When to start action: ",styles={'font-size': '11pt'})
-        action_location = pnw.RadioButtonGroup(options=["Now","Next","Later"],value="Later") # Radio button: Now, Next, Later
-        confirm_button = pnw.Button(name="Create Action") # Create an action
-
-        creation_area = pn.WidgetBox(
+        house_string = pnp.Markdown("Select A House Plan",styles={'font-size': '11pt'},align='center')
+        house_plan = pnw.FileInput(accept='.png',align='center')
+        action_area = pn.WidgetBox(
             house_string, house_plan,
             pnl.Divider(),
+        
+        )
+
+        action_name = pnw.TextInput(name="Action Name:",placeholder="Action X",align='center')
+        room_select = pnw.Select(name="Select Room",options = ["Living Room","Bedroom 1","Need to replace at later date"],align='center')
+        wall_select = pnw.Select(name="Select Wall to Paint",options = [1,2,3,4],align='center')
+        action_location_string = pnp.Markdown("When to start action: ",styles={'font-size': '11pt'},align='center')
+        action_location = pnw.RadioButtonGroup(options=["Now","Next","Later"],value="Later",button_type=self.button_colouring[0],button_style=self.button_colouring[1]) # Radio button: Now, Next, Later
+        confirm_button = pnw.Button(name="Save Action",button_type="success",button_style=self.button_colouring[1]) 
+        delete_button = pnw.Button(name="Delete Action",button_type="danger",button_style=self.button_colouring[1])
+        
+        creation_area = pn.WidgetBox(
             action_name,
             room_select,
             wall_select,
-            pn.Row(action_location_string,action_location),
-            confirm_button
+            pn.Row(action_location_string,action_location,align='center'),
+            pn.Row(confirm_button,delete_button,align='center'),
         )
         
+
+        house_plan_area = pn.bind(self._CreateActionHousePlanPresent,houseplan=house_plan)
+
         base = pnl.GridSpec(sizing_mode="stretch_both",)
-        base[0:1,0:2] = creation_area # Action creation info
+        base[0:,0:1] = action_area # Action creation info
         base[0:,2:4] = pn.Spacer(styles=dict(background='green')) # Room Plan (With labeled walls)
-        base[1:2,0:1] = pn.Spacer(styles=dict(background='blue')) # Action Queue (All current actions, with option to delete, edit, etc)
-        base[1:2,1:2] = pn.Spacer(styles=dict(background='cyan')) # Full house plan (with room marked) by an icon
+        base[0:1,1:2] = creation_area # Action Queue (All current actions, with option to delete, edit, etc)
+        base[1:2,1:2] = house_plan_area # Full house plan (with room marked) by an icon
         
         self.pages["Actions"] = base
     
     def _CreateActionHousePlanPresent(self,houseplan):
-        pass
+
+        return pnp.PNG(houseplan,sizing_mode='scale_both',alt_text = 'Housing Plan')
 
     def _CreateActionSq(self,name,room,wall,loc):
         pass
