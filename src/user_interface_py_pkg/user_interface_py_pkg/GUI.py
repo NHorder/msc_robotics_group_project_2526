@@ -132,120 +132,51 @@ class GUI():
     def _CreateActionScreen(self):
         """Method to create the action screen"""
 
-        # Simple text
-        house_string = pnp.Markdown("Select A House Plan",styles={'font-size': '11pt'},align='center')
-
-        # Create a file input node
-        # The user can select files from their device (.png / .jpg /.jpeg) and upload it
-        # Default house plan is in this pkg, for testing purposes - it will be replaced with an image
-        # that states "No Housing plan uploaded"
-        house_plan = pnw.FileInput(accept='.png,.jpg,.jpeg',align='center', value = "./houseplan_ground.jpg")
-
         # CreateActionList is a function that handles the list of actions and current action
-        self._CreateActionList()
-        
-        # Define action area - this involves the house plan and existing action list
-        action_area = pn.WidgetBox(
-            house_string, house_plan,
-            pnl.Divider(),
-            self.action_list
-        )
+        self.action_list = pn.Column(align='center',sizing_mode= 'stretch_both',scroll = True,height_policy="max" )
+        self.action_list.append(pnp.Markdown("No Actions Planned",styles={'font-size': '11pt'},align='center'))
 
         # Code to generate the modify or create action area
         action_planner_name = pnp.Markdown("Action Planner",styles={'font-size': '11pt'},align='center')
         action_name = pnw.TextInput(name="Action Name:",placeholder="Action X",align='center')
-        room_select = pnw.Select(name="Select Room",options = ["Living Room","Bedroom 1","Need to replace at later date"],align='center')
+        
         wall_select = pnw.Select(name="Select Wall to Paint",options = [1,2,3,4],align='center')
         action_location_string = pnp.Markdown("When to start action: ",styles={'font-size': '11pt'},align='center')
         action_location = pnw.RadioButtonGroup(options=["Now","Next","Later"],value="Later",button_type=self.button_colouring[0],button_style=self.button_colouring[1]) # Radio button: Now, Next, Later
         confirm_button = pnw.Button(name="Save Action",button_type="success",button_style=self.button_colouring[1],align='center')
         
         # Save the inputs as a class variable, enables access from other functions (when the 'Save Action' button is pressed)
-        self.create_actions_widgets = [action_name,room_select,wall_select,action_location]
+        self.create_actions_widgets = [action_name,wall_select,action_location]
 
         # Conglomerate all the widgets into a dedicated area
         creation_area= pn.WidgetBox(
             action_planner_name,
             action_name,
-            room_select,
             wall_select,
             pn.Row(action_location_string,action_location,align='center'),
             confirm_button,
-            pn.bind(self._CreateActionSq,button=confirm_button)
+            pn.bind(self._CreateActionSq,button=confirm_button),
+            sizing_mode='stretch_width',
+            align= 'center'
         )
 
-        # Bind the house plan area (which displays the house plan image) to the upload house plan node
-        house_plan_area = pn.bind(self._CreateActionHousePlanPresent,houseplan=house_plan)
+        # Define action area - this involves the house plan and existing action list
+        action_area = pn.WidgetBox(
+            self.action_list,
+            pnl.Divider(),
+            creation_area,
+            sizing_mode='stretch_width',
+            align = 'center'
+        )
 
         # Define the whole page, and place areas respectivly
-        base = pnl.GridSpec(sizing_mode="stretch_both",)
+        base = pnl.GridSpec(sizing_mode="stretch_both")
         base[0:,0:1] = action_area # Action creation info
-        base[0:,2:4] = pn.Spacer(styles=dict(background='green')) # Room Plan (With labeled walls)
-        base[0:1,1:2] = creation_area # Action Queue (All current actions, with option to delete, edit, etc)
-        base[1:2,1:2] = house_plan_area # Full house plan (with room marked) by an icon
+        base[0:,1:4] = pn.Spacer(styles=dict(background='green')) # Room Plan (With labeled walls)
         
         # Save as actions page
         self.pages["Actions"] = base
     
-    def _CreateActionHousePlanPresent(self,houseplan):
-        """Method to handle display of uploaded house plan"""
-
-        # FURTHER implemenatation planned, this will disect the image and update 
-        # the room selection and wall selection options - allowing the user to actually select walls, and not just
-        # wall 4 in who knows what room
-
-        return pnp.Image(houseplan,sizing_mode='scale_both',alt_text = 'Housing Plan')
-
-    def _CreateActionList(self):
-        """Method of handle the update of action list"""
-
-        # Overwrite predefinition of action list
-        # Done to ensure it already exists for binding purposes
-        if self.action_list == 0: self.action_list = pn.Column(align='center',sizing_mode='stretch_width')
-        
-        # If there are currently no planned actions, replace contents with "No Actions Planned"
-        if len(self.planned_actions) == 0:
-            self.action_list.append(pnp.Markdown("No Actions Planned",styles={'font-size': '11pt'},align='center'))
-        else:
-            # Else clear the list - removing "No Actions Planned" and all other content
-            self.action_list.clear()
-
-            # Loop through all actions
-            for i in range(0,len(self.planned_actions)):
-                # Get the action data
-                action_info = self.planned_actions[i].GetData()
-
-                # If at the first index - assume it's the current action
-                if i == 0:
-                    # If the action is not active, present a play button to start, else a pause button
-                    if (self.active_action == 0): button = pnw.ButtonIcon(icon="player-play",size="2em",align="center")
-                    else: button = pnw.ButtonIcon(icon="player-pause",size="2em",align="center")
-
-                    # Otherwise display current action information
-                    self.action_list.append(
-                        pn.WidgetBox(
-                            pnp.Markdown("Current Action",align="center"),
-                            pnp.Markdown(f"{action_info[0]} || Room: {action_info[1]} || Wall: {action_info[2]}",styles={'font-size': '11pt'},align="center"),
-                            button,
-                            pnl.Divider(),
-                            sizing_mode='stretch_width'
-                        )
-                    )
-                    
-                else:
-                    # Otherwise, display action information
-                    # NOTE: Still need to bind edit and trash
-                    # Edit should overwrite whats in the creation widgets (that you can access)
-                    # Delete should remove it from the list of actions
-                    self.action_list.append(
-                        pn.WidgetBox(pn.Row(
-                            pnp.Markdown(f"{action_info[0]} || Room: {action_info[1]} || Wall: {action_info[2]}",styles={'font-size': '11pt'},align="center"),
-                            pnw.ButtonIcon(icon='edit',size="2em",align="center"),
-                            pnw.ButtonIcon(icon='trash',size="2em",align="center"),
-                            sizing_mode='stretch_width'
-                        ))
-                    )
-
     def _CreateActionSq(self,button):
         """Method to create actions"""
 
@@ -255,13 +186,13 @@ class GUI():
         if (self.inital == False):
 
             # Create action class from inputs
-            action = Action(self.create_actions_widgets[0].value,self.create_actions_widgets[1].value,self.create_actions_widgets[2].value)
+            action = Action(self.create_actions_widgets[0].value,self.create_actions_widgets[1].value)
             
             # If no name provided, use a default name of "Action X", where X is how many actions already exist
             if (action.name == ""): action.name = "Action "+str(len(self.planned_actions))
 
             # If the user wants to intrupt the current action
-            if self.create_actions_widgets[3].value == 'Now':
+            if self.create_actions_widgets[2].value == 'Now':
                 # Set it to be the next item
                 action.SetListLoc(1)
                 # Notify operator of override
@@ -269,7 +200,7 @@ class GUI():
                 # End current action
 
             # If the operator wants it to be the next action
-            elif self.create_actions_widgets[3].value == 'Next':
+            elif self.create_actions_widgets[2].value == 'Next':
                 # Set action as next to be done
                 action.SetListLoc(1)
 
@@ -277,7 +208,7 @@ class GUI():
             # Might change, to allow operator to select where to place the action
             else:
                 action.SetListLoc(len(self.planned_actions))
-            
+
             # If there is more than 2 actions, then use insert if Now or Next
             # Cause you can't do it otherwise
             if len(self.planned_actions) >= 2 and action.GetLoc() == 1:
@@ -285,10 +216,34 @@ class GUI():
             else:
                 # Add to end of planned action list
                 self.planned_actions.append(action)
-
+   
             # Call CreateActionList to update the visual list of actions
-            self._CreateActionList()
-        
+            if len(self.planned_actions) == 1:
+                self.action_list.pop()
+                # If the action is not active, present a play button to start, else a pause button
+                if (self.active_action == 0): button = pnw.ButtonIcon(icon="player-play",size="2em",align="center")
+                else: button = pnw.ButtonIcon(icon="player-pause",size="2em",align="center")
+
+                # Otherwise display current action information
+                self.action_list.append(
+                    pn.WidgetBox(
+                        pnp.Markdown("Current Action",align="center"),
+                        pnp.Markdown(f"{action.name} || Wall: {action.wall}",styles={'font-size': '11pt'},align="center"),
+                        button,
+                        pnl.Divider(),
+                        sizing_mode='stretch_width'
+                    )
+                )
+            else:
+                self.action_list.insert(action.loc,
+                    pn.WidgetBox(pn.Row(
+                        pnp.Markdown(f"{action.name} || Wall: {action.wall}",styles={'font-size': '11pt'},align="center"),
+                        pnw.ButtonIcon(icon='edit',size="2em",align="center"),
+                        pnw.ButtonIcon(icon='trash',size="2em",align="center"),
+                        sizing_mode='stretch_width'
+                    ))
+                )
+         
 
 
     def _CreateRobotInfoScreen(self):
