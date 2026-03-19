@@ -2,9 +2,8 @@
 
 class Action():
 
-    def __init__(self,name:str,room:str,wall:str):
+    def __init__(self,name:str,wall:str):
         self.name = name
-        self.room = room
         self.wall = wall
         self.loc = -1
     
@@ -15,4 +14,4 @@ class Action():
         return self.loc
 
     def GetData(self):
-        return [self.name,self.room,self.wall,self.loc]
+        return [self.name,self.wall,self.loc]
