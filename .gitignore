@@ -2,11 +2,11 @@ build/
 install/
 log/
 
-__pycache_/
+__pycache__/
+*.pyc
 
-CMakeFiles/
-CMakeCache.txt
-cmake_install.cmake
-Makefile
+*.webm
+*.gv
+*.pdf
 
-.vscode/
+.DS_Store
