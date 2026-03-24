@@ -53,12 +53,16 @@ class NodeHandler():
             self.subscriber_data[sub_key] = []
 
             # Set logger to that of first subscriber node to enable logging
-            if self.logger == 0: self.logger = subscribers[sub_key].getLogger()
-        
+            #if self.logger == 0: self.logger = subscribers[sub_key].getLogger()
+
+        print("Hi?")
+
         # Spin nodes on a separate thread
         # A separate thread is required as spinning is a infinite looped execution
-        self.daemon_thread = threading.Thread(target=self._SpinNodes(),daemon=True)
+        self.daemon_thread = threading.Thread(target=self._SpinNodes,daemon=True)
         self.daemon_thread.start()
+
+        print("Hello?")
 
     def _SpinNodes(self):
         """
@@ -141,7 +145,7 @@ def main(args=None):
     subscribers = {}
     subscribers['Camera'] = Sub_Camera()
     subscribers['Lidar'] = Sub_Lidar()
-    subscribers['ManiForce'] = Sub_ManiForce()
+    #subscribers['ManiForce'] = Sub_ManiForce()
 
     handler = NodeHandler(publishers,subscribers)
 

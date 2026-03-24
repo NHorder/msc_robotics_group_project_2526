@@ -28,7 +28,7 @@ class Sub_Camera(Node):
         # Create subscription to LiDAR ROS 2 topic
         self.subscription = self.create_subscription(
             String,
-            '',
+            '/camera/take_picture',
             self.callback,
             10
         )

@@ -14,7 +14,7 @@ from panel import pane as pnp
 from panel import layout as pnl
 from panel import widgets as pnw
 pn.extension(notifications=True)
-
+import threading
 
 """
 GUI Class handles the creation and utilisation of the user interface
@@ -303,3 +303,5 @@ def main(args=None):
 if __name__ == "__main__":
     main()
 
+
+# %%

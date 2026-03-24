@@ -28,7 +28,7 @@ class Sub_Lidar(Node):
         # Create subscription to LiDAR ROS 2 topic
         self.subscription = self.create_subscription(
             String,
-            '',
+            '/scan',
             self.callback,
             10
         )
