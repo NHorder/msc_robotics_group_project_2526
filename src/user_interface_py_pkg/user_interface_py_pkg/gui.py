@@ -41,8 +41,6 @@ class GUI():
         self.planned_actions = []
         self.create_actions_widgets = []
         self.action_list  = 0
-        
-        
 
     def RunApp(self):
         """

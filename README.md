@@ -23,6 +23,7 @@ ROS2 Humble
 
 Packages:
 - ros-humble-slam-toolbox
+- ros-humble-ros-gz
 
 
 ### Simulation Execution
