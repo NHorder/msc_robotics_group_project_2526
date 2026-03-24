@@ -19,7 +19,7 @@ class Pub_Wall():
         """
         Initialisation Method
         """
-        super().__init__('ui/pub/wall')
+        super().__init__('ui_pub_wall')
 
         # Define publisher
         self.publisher = self.create_publisher(

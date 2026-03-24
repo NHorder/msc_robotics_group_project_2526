@@ -24,23 +24,25 @@ class GUI():
     def __init__(self):
         """Initialisation function. Prepares Interface for screen creation"""
 
-        self.inital = True
+        # Establish link to node handler
+        self.node_handler = main_nodehandler()
 
-        self.pages = {}
-
+        # Set button style - will affect all buttons in the UI
         self.button_colouring = ['primary','outline']
 
+        # Set intial - prevents automatic firing of binded functions
+        self.inital = True
 
+        # Define pages
+        self.pages = {}
+
+        # Intialise action information
         self.active_action = 0
         self.planned_actions = []
         self.create_actions_widgets = []
         self.action_list  = 0
-        pass
         
-
-    def LinkToNodes(self):
-        pass
-
+        
 
     def RunApp(self):
         """
@@ -285,24 +287,21 @@ class GUI():
         else:
             # Throw warning if page is not created 
             pn.state.notifications.warning("Warning: Page not found",duration = 4000)
-            
-        
-# Activation!
-if __name__ == "__main__":
 
+
+def main(args=None):
+    
     # Create GUI class
     gui = GUI()
-
-    # Create / link to subscribers and publishers    
-
-    # Link ROS2 Nodes, so the GUI can display them
-    gui.LinkToNodes()
 
     # Get and create the app
     app = gui.RunApp()
 
     # Programmically serve the app
     pn.serve(app)
-# %%
 
+#%%
+# Activation!
+if __name__ == "__main__":
+    main()
 

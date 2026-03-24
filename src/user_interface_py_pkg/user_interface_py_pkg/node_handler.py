@@ -72,9 +72,6 @@ class NodeHandler():
 
             if (self.logger != 0): self.logger.info("UI-NODE-HANDLER || Spinning all subscribers and publishers")
 
-            # Intialise rlcpy
-            rclpy.init()
-
             # Create a mutli-thread executor
             # Required to spin multiple nodes - spinning normally would result in one node spun, other nodes not spun
             exe = MultiThreadedExecutor()
@@ -133,13 +130,12 @@ def main(args=None):
     Main function used to start the handler
     Returns handler object if not executed directly
     """
-
-    # Initialise rclpy
-    rclpy.init(args=args)
+    # Intialise rlcpy
+    rclpy.init()
     
     # Load Publishers
     publishers = {}
-    publishers['Wall'] = Pub_Wall()
+    #publishers['Wall'] = Pub_Wall()
 
     # Load Subscribers
     subscribers = {}

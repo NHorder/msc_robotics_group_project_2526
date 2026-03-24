@@ -23,7 +23,7 @@ class Sub_Camera(Node):
         Starts subscription service and notifies user of when active
         """
 
-        super().__init__('ui/sub/camera')
+        super().__init__('ui_sub_camera')
 
         # Create subscription to LiDAR ROS 2 topic
         self.subscription = self.create_subscription(

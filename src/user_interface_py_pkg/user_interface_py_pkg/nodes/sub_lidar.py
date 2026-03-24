@@ -23,7 +23,7 @@ class Sub_Lidar(Node):
         Starts subscription service and notifies user of when active
         """
 
-        super().__init__('ui/sub/lidar')
+        super().__init__('ui_sub_lidar')
 
         # Create subscription to LiDAR ROS 2 topic
         self.subscription = self.create_subscription(
