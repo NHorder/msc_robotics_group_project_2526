@@ -5,14 +5,30 @@ from Nodes.Sub_Force import Sub_ManiForce
 from Nodes.Pub_Wall import Pub_Wall
 
 import rclpy
+from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
 from std_msgs.msg import String
 
 import threading
 
 class NodeHandler():
+    """
+    Class: NodeHandler
+    Purpose: Handles information transfer between UI and nodes
+
+    Core variables:
+    - publishers: Dict of publisher classes
+    - subscribers: Dict of subscriber classes
+    - subscriber_data: Dict of subscriber data (to display)
+
+    """
     
     def __init__(self,publishers,subscribers):
+        """
+        Initialisation Method
+        """
+
+        # Save link to publishers and subscribers locally
         self.publishers = publishers
         self.subscribers = subscribers
 
@@ -33,7 +49,8 @@ class NodeHandler():
             # Set logger to that of first subscriber node to enable logging
             if self.logger == 0: self.logger = subscribers[sub_key].getLogger()
         
-        # Spin nodes
+        # Spin nodes on a separate thread
+        # A separate thread is required as spinning is a infinite looped execution
         self.daemon_thread = threading.Thread(target=self._SpinNodes(),daemon=True)
         self.daemon_thread.start()
 
@@ -46,18 +63,29 @@ class NodeHandler():
 
             if (self.logger != 0): self.logger.info("UI-NODE-HANDLER || Spinning all subscribers and publishers")
 
-            try:
-                # Spin all publishers
-                for pub_key in self.publishers.keys():
-                    rclpy.spin(self.publishers[pub_key])
+            # Intialise rlcpy
+            rclpy.init()
 
-                # Spin all subscribers
-                for sub_key in self.subscribers.keys():
-                    rclpy.spin(self.subscribers[sub_key])
+            # Create a mutli-thread executor
+            # Required to spin multiple nodes - spinning normally would result in one node spun, other nodes not spun
+            exe = MultiThreadedExecutor()
+
+            # Loop through all publishers, add to exe
+            for pub_key in self.publishers.keys():
+                exe.add_node(self.publishers[pub_key])
+            
+            # Loop through all subscribers, add to exe
+            for sub_key in self.subscribers.keys():
+                exe.add_node(self.subscribers[sub_key])
+
+            # Spin exe
+            try:
+                exe.spin()
 
             except KeyboardInterrupt:
                 # On keyboard interrupt, shut down the system
                 pass
+            
             finally:
 
                 # Destroy all publishers
