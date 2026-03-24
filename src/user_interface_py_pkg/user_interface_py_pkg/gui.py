@@ -1,6 +1,14 @@
+################################
+# gui.py
+# Part of the user_interface_py_pkg
+#
+# Part of Cranfield University MSC Robotics Group Project 2025-2026
+################################
 
 #%%
-from Action import Action
+from action import Action
+from node_handler import main as main_nodehandler
+from node_handler import NodeHandler
 import panel as pn 
 from panel import pane as pnp
 from panel import layout as pnl

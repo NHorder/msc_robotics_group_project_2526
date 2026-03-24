@@ -1,7 +1,13 @@
+################################
+# sub_camera.py
+# Part of the user_interface_py_pkg/nodes
+#
+# Part of Cranfield University MSC Robotics Group Project 2025-2026
+################################
+
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import String
-from NodeHandler import NodeHandler
 
 class Sub_Camera(Node):
     """
@@ -46,7 +52,7 @@ class Sub_Camera(Node):
         self.data = msg
 
         # If handler is present, pass data to it
-        if self.handler != 0: self.handler.CallbackCamera(msg.data)
+        if self.handler != 0: self.handler.NotifyHandler("Camera",msg.data)
 
     def NotifyDestruction(self):
         """
@@ -54,7 +60,7 @@ class Sub_Camera(Node):
         """
         self.get_logger().info("UI-SUB-CAMERA || Status: Inactive")
 
-    def SetHandler(self,handler: NodeHandler):
+    def SetHandler(self,handler):
         """ 
         Method to attach handler
         """

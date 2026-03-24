@@ -1,8 +1,14 @@
+################################
+# node_handler.py
+# Part of the user_interface_py_pkg
+#
+# Part of Cranfield University MSC Robotics Group Project 2025-2026
+################################
 
-from Nodes.Sub_Camera import Sub_Camera
-from Nodes.Sub_Lidar import Sub_Lidar
-from Nodes.Sub_Force import Sub_ManiForce
-from Nodes.Pub_Wall import Pub_Wall
+from nodes.sub_camera import Sub_Camera
+from nodes.sub_lidar import Sub_Lidar
+from nodes.sub_force import Sub_ManiForce
+from nodes.pub_wall import Pub_Wall
 
 import rclpy
 from rclpy.executors import MultiThreadedExecutor
@@ -54,8 +60,11 @@ class NodeHandler():
         self.daemon_thread = threading.Thread(target=self._SpinNodes(),daemon=True)
         self.daemon_thread.start()
 
-
     def _SpinNodes(self):
+        """
+        Method handles spinning of all subscribers and publishers on a daemon thread
+        - Must be executed on a daemon thread, as spinning will block futher actions
+        """
 
         if self.spun:
             if (self.logger != 0): self.logger.info("UI-NODE-HANDLER || Nodes have been previously spun")
@@ -85,7 +94,7 @@ class NodeHandler():
             except KeyboardInterrupt:
                 # On keyboard interrupt, shut down the system
                 pass
-            
+
             finally:
 
                 # Destroy all publishers
@@ -101,21 +110,29 @@ class NodeHandler():
                 # Shutdown rclpy
                 rclpy.shutdown()
     
-    def CallbackLidar(self,data):
-        pass
+    def NotifyHandler(self,subscriber_id,data):
+        """
+        Subscriber link method, called by subscribers on update
+        Updates local data, throws warning if unknown subscriber notifies
+        """
+        if (subscriber_id in self.subscriber_data.keys()):
+            self.subscriber_data[subscriber_id] = data
 
-    def CallbackCamera(self,data):
-        pass
-
-    def CallbackManiForce(self,data):
-        pass
+        elif self.logger != 0:
+            self.logger.warning("UI-NODE-HANDLER || Unknown subscriber notifying handler")
 
     def Publish(self,publisher_id,msg):
+        """
+        Method to publish information through a publisher
+        """
         self.publishers[publisher_id].Publish(msg)
 
 
-
 def main(args=None):
+    """
+    Main function used to start the handler
+    Returns handler object if not executed directly
+    """
 
     # Initialise rclpy
     rclpy.init(args=args)
