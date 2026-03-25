@@ -14,8 +14,10 @@ import rclpy
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
 from std_msgs.msg import String
-
+import asyncio
 import threading
+import numpy as np
+from holoviews.streams import Pipe
 
 class NodeHandler():
     """
@@ -117,16 +119,77 @@ class NodeHandler():
         Updates local data, throws warning if unknown subscriber notifies
         """
         if (subscriber_id in self.subscriber_data.keys()):
-            self.subscriber_data[subscriber_id] = data
+
+            if (subscriber_id == "Lidar"):
+                point_data = Process_Lidar(data)
+                self.subscriber_data["Lidar"] = point_data
+
+
+            else:
+                self.subscriber_data[subscriber_id] = data
 
         elif self.logger != 0:
             self.logger.warning("UI-NODE-HANDLER || Unknown subscriber notifying handler")
+
+
+    async def GetData(self,subscriber_id:String,gui_pipe:Pipe):
+        while True:
+            await asyncio.sleep(1)
+            gui_pipe.send(np.array(self.subscriber_data[subscriber_id]))
 
     def Publish(self,publisher_id,msg):
         """
         Method to publish information through a publisher
         """
         self.publishers[publisher_id].Publish(msg)
+
+    def LoadFakeData(self):
+
+        # Camera and Manipulator Arm Plans are linked, Camera takes a still shot, path is planned using dots on the image
+        # Camera is just an image btw - path is points plotted on top of it ()
+        self.subscriber_data['Camera'] = "./camera/still.jpg"
+        self.subscriber_data['ManipulatorArmPlan'] = "./camera/still_arm_path.jpg"
+        
+        self.subscriber_data['RobotInformation']
+
+        self.subscriber_data['WorldInfo'] = {"Temperature":12}
+
+        self.subscriber_data['EntitiesNearby'] = {1:"3m",2:"5m",3:"6m"}
+
+
+
+def Process_Lidar(dat):
+    header = dat.header
+    range = dat.ranges
+    angle_min = dat.angle_min
+    angle_max = dat.angle_max
+    angle_increment  = dat.angle_increment
+    range_min = dat.range_min
+    range_max = dat.range_max
+
+    points = []
+    current_angle = angle_min
+    i = 0
+    group_x = []
+    group_y = []
+
+    for range_val in range:
+
+        group_x.append(range_val * np.cos(current_angle))
+        group_y.append(range_val * np.sin(current_angle))
+
+        if (i % 5 == 0):
+            points.append((np.mean(group_x),np.mean(group_y)))
+            group_x.clear()
+            group_y.clear()
+
+        current_angle+=angle_increment
+        i+=1
+    
+
+    
+    return points
+
 
 
 def main(args=None):

@@ -9,12 +9,18 @@
 from action import Action
 from node_handler import main as main_nodehandler
 from node_handler import NodeHandler
+
+import numpy as np
+import numpy as np
+import holoviews as hv
 import panel as pn 
 from panel import pane as pnp
 from panel import layout as pnl
 from panel import widgets as pnw
 pn.extension(notifications=True)
-import threading
+hv.extension('bokeh')
+import asyncio
+from holoviews.streams import Pipe
 
 """
 GUI Class handles the creation and utilisation of the user interface
@@ -49,6 +55,8 @@ class GUI():
         Returns: Servable application
         """
         # Createa all the screens
+        self._CreateGraphics()
+
         self._CreateHomeScreen()
         self._CreateMotionScreen()
         self._CreateActionScreen()
@@ -56,7 +64,7 @@ class GUI():
 
         # Bind the function "_ChangePage" to the radio button group in the sidebar
         # Enabled operators to change main page content
-        main_content = pn.bind(self._ChangePage,value=side_bar[3])
+        main_content = pn.bind(self._ChangePage,value=side_bar[2])
 
         # Disable intial
         # Initial is present as all triggerable functions are triggered once during creation to ensure
@@ -74,6 +82,58 @@ class GUI():
 
         return app
     
+    def _CreateGraphics(self):
+
+        # Create Lidar visual link
+        lidar_pipe = Pipe(data = [])
+        task = asyncio.create_task(self.node_handler.GetData('Lidar',lidar_pipe))
+        self.lidar_scatter = pnl.WidgetBox(hv.DynamicMap(hv.Scatter,streams=[lidar_pipe]).opts(responsive=True),sizing_mode='stretch_both')
+
+
+        self.battery_progress = pn.indicators.Progress(name='Battery Level',active=True,sizing_mode='stretch_both',bar_color='success')
+        self.battery_progress.value = 87
+        self.paint_indicator = pn.indicators.LinearGauge(name='Paint Levels',value=2.6,format='{value:.1f} kg',bounds=(0.7,25.4),colors=['red','gold','green'],horizontal=True,sizing_mode='stretch_both')
+        self.progress_progress = pn.indicators.Progress(name='Task Progress',active=True,sizing_mode='stretch_both',bar_color='success')
+        self.progress_progress.value = 12
+
+        self.system_health = pn.Column(
+            pnp.Markdown("System Health",styles={'font-size': '12pt'},align='center'),
+            pnl.Divider(),
+            pnp.Markdown("Safety Systems : Online",styles={'font-size': '11pt'},align='center'),
+            pnp.Markdown("Safety Contingencies : On-Standby",styles={'font-size': '11pt'},align='center'),
+
+            pnl.Divider(),
+
+            pnp.Markdown("Lidar  : Online",styles={'font-size': '11pt'},align='center'),
+            pnp.Markdown("Camera : Online",styles={'font-size': '11pt'},align='center'),
+
+            pnl.Divider(),
+
+            pnp.Markdown("Manipulator : Connected",styles={'font-size': '11pt'},align='center'),
+            pnp.Markdown("Mobile Base : Connected",styles={'font-size': '11pt'},align='center'),
+
+            pnl.Divider(),
+
+            pnp.Markdown("Localisation: Online",styles={'font-size': '11pt'},align='center'),
+            pnp.Markdown("Motion Planning : Online ",styles={'font-size': '11pt'},align='center'),
+            sizing_mode='stretch_both'
+        )
+
+        self.critical_info = pn.Column(
+            pnp.Markdown("Critical Information",styles={'font-size': '12pt'},align='center'),
+            pn.Row(pnp.Markdown("Battery",styles={'font-size': '12pt'},align='center'),self.battery_progress,align='center'),
+            pn.Row(pnp.Markdown("Action Progress",styles={'font-size': '12pt'},align='center'),self.progress_progress,align='center'),
+            self.paint_indicator,
+            pnl.Divider(),
+            self.system_health,
+            sizing_mode='stretch_both',
+            scroll = True,height_policy="max"
+        )
+
+
+        self.emergency_commands = pn.Column(
+
+        )
 
 
     def _CreateHomeScreen(self):
@@ -82,7 +142,7 @@ class GUI():
         # Turns the page into a fixed grid system
         base = pnl.GridSpec(sizing_mode="stretch_both",)
 
-        base[0:2,0:2] = pn.Spacer(styles=dict(background='red')) # Essentials: battery, progress, paint levels, system health
+        base[0:2,0:2] = self.critical_info # Essentials: battery, progress, paint levels, system health
         base[2:5,0:2] = pn.Spacer(styles=dict(background='blue')) # Robot Information, world information
 
         base[0:3,2:8] = pn.Spacer(styles=dict(background='green')) # 2D Localisation map, highlighted entities and wall, mobile base motion plan
@@ -92,7 +152,7 @@ class GUI():
         base[3:5,5:8] =  pn.Spacer(styles=dict(background='cyan')) # Manipualtor arm motion plan
 
         base[0:2,8:12] =  pn.Spacer(styles=dict(background='magenta')) # RGB Camera
-        base[2:4,8:12] =  pn.Spacer(styles=dict(background='purple')) # LiDAR Camera
+        base[2:4,8:12] =  self.lidar_scatter
 
         base[4:5,8:12] =  pn.Spacer(styles=dict(background='lime')) # Emergency commands and other command commands
         
@@ -136,12 +196,11 @@ class GUI():
         if value == "Mobile Base": return robot_base
         else: return manipulator_arm
  
-
     def _CreateActionScreen(self):
         """Method to create the action screen"""
 
         # CreateActionList is a function that handles the list of actions and current action
-        self.action_list = pn.Column(align='center',sizing_mode= 'stretch_both',scroll = True,height_policy="max" )
+        self.action_list = pn.Column(align='center',sizing_mode= 'stretch_both',scroll = True,height_policy="max")
         self.action_list.append(pnp.Markdown("No Actions Planned",styles={'font-size': '11pt'},align='center'))
 
         # Code to generate the modify or create action area
@@ -266,17 +325,14 @@ class GUI():
         """Method to create the sidebar of the application"""
 
         # Display the essential system information - including emergency stop and pause
-        essentials = pn.WidgetBox("System Information",sizing_mode="stretch_both")
-
-        # Display the system health - is everything runnning well? What's having errors or anomalous stuff
-        system_health = pn.WidgetBox("Robot Information",sizing_mode="stretch_both")
+        essentials = pn.WidgetBox(self.critical_info,sizing_mode="stretch_both")
 
         # Radio button for all available pages - could theoretically change the options to dict.keys
         # preventing users from accessing unfinished pages
         radio_button = pnw.RadioButtonGroup(options=["Home","Actions","Motion","Robot Information","Logging","Legal Information"],orientation = 'vertical',button_type=self.button_colouring[0],button_style=self.button_colouring[1],sizing_mode="stretch_both")
 
         # Setup the column layout
-        column = pn.Column(essentials,system_health,pnl.Divider(),radio_button,sizing_mode="stretch_both")
+        column = pn.Column(essentials,pnl.Divider(),radio_button,sizing_mode="stretch_both")
         return column
     
     def _ChangePage(self,value):
@@ -301,7 +357,13 @@ def main(args=None):
 #%%
 # Activation!
 if __name__ == "__main__":
-    main()
+    # Create GUI class
+    gui = GUI()
 
+    # Get and create the app
+    app = gui.RunApp()
+
+    # Programmically serve the app
+    pn.serve(app)
 
 # %%

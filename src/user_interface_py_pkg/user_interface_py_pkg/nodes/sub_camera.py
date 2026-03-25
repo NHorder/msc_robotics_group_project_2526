@@ -7,7 +7,7 @@
 
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import String
+from sensor_msgs.msg import Image
 
 class Sub_Camera(Node):
     """
@@ -27,8 +27,8 @@ class Sub_Camera(Node):
 
         # Create subscription to LiDAR ROS 2 topic
         self.subscription = self.create_subscription(
-            String,
-            '/camera/take_picture',
+            Image,
+            '/camera/image_raw',
             self.callback,
             10
         )
@@ -48,11 +48,11 @@ class Sub_Camera(Node):
         Called upon receiving ROS2 updates from a publisher on the same topic
         Notifies operator of update, if handler is present, notify it to update information
         """
-        self.get_logger().info(f"UI-SUB-CAMERA // Retrieved: {msg.data}")
+        self.get_logger().info(f"UI-SUB-CAMERA // Retrieved")
         self.data = msg
 
         # If handler is present, pass data to it
-        if self.handler != 0: self.handler.NotifyHandler("Camera",msg.data)
+        if self.handler != 0: self.handler.NotifyHandler("Camera",msg)
 
     def NotifyDestruction(self):
         """

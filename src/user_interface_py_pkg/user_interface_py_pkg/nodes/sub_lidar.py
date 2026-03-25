@@ -7,7 +7,7 @@
 
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import String
+from sensor_msgs.msg import LaserScan
 
 class Sub_Lidar(Node):
     """
@@ -27,7 +27,7 @@ class Sub_Lidar(Node):
 
         # Create subscription to LiDAR ROS 2 topic
         self.subscription = self.create_subscription(
-            String,
+            LaserScan,
             '/scan',
             self.callback,
             10
@@ -48,11 +48,11 @@ class Sub_Lidar(Node):
         Called upon receiving ROS2 updates from a publisher on the same topic
         Notifies operator of update, if handler is present, notify it to update information
         """
-        self.get_logger().info(f"UI-PUB-WALL // Retrieved: {msg.data}")
+        self.get_logger().info(f"UI-PUB-WALL // Retrieved")
         self.data = msg
 
         # If handler is present, pass data to it
-        if self.handler != 0: self.handler.NotifyHandler("Lidar",msg.data)
+        if self.handler != 0: self.handler.NotifyHandler("Lidar",msg)
 
     def NotifyDestruction(self):
         """
