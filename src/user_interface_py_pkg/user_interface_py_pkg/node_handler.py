@@ -178,7 +178,7 @@ def Process_Lidar(dat):
         group_x.append(range_val * np.cos(current_angle))
         group_y.append(range_val * np.sin(current_angle))
 
-        if (i % 5 == 0):
+        if True:#(i % 5 == 0):
             points.append((np.mean(group_x),np.mean(group_y)))
             group_x.clear()
             group_y.clear()
