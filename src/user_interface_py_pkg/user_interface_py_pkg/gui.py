@@ -12,6 +12,7 @@ import asyncio
 import logging
 import holoviews as hv
 import panel as pn 
+import pandas as pd
 from action import Action
 from node_handler import main as main_nodehandler
 from node_handler import NodeHandler
@@ -190,20 +191,43 @@ class GUI():
         # Mobile base sub-page creation
         robot_base = pnl.GridSpec(sizing_mode="stretch_both",)
         robot_base[0:6,0:2] = pn.Spacer(styles=dict(background='red')) # Mobile Base Information
-        robot_base[0:4,2:6] = pn.Spacer(styles=dict(background='orange')) # Motion Plan
-        robot_base[0:4,6:10] = pn.Spacer(styles=dict(background='yellow')) # LiDAR
-        robot_base[4:6,2:6] = pn.Spacer(styles=dict(background='darkred')) #Instruction information
-        robot_base[4:6,6:8] = pn.Spacer(styles=dict(background='darkorange')) # Pause and stop 
+        robot_base[0:4,2:6] = self.motion_plan # Motion Plan
+        robot_base[0:4,6:10] = self.lidar_scatter # LiDAR
+        robot_base[4:6,2:6] = self.action_home #Instruction information
+        robot_base[4:6,6:8] = self.emergency_commands # Pause and stop 
         robot_base[4:6,8:10] = pn.Spacer(styles=dict(background='red')) # 3D Model of entire robot
+
+
+
+        manipulator_data = pd.read_csv("./data/manipulator_dh.csv")
 
         # Manipulator arm sub-page creation
         manipulator_arm = pnl.GridSpec(sizing_mode="stretch_both",)
-        manipulator_arm[0:6,0:2] = pn.Spacer(styles=dict(background='blue')) # Manipulator Information
-        manipulator_arm[0:4,2:6] = pn.Spacer(styles=dict(background='cyan')) # Manipulator Plan
-        manipulator_arm[0:4,6:10] = pn.Spacer(styles=dict(background='purple')) # Camera
-        manipulator_arm[4:6,2:6] = pn.Spacer(styles=dict(background='darkblue')) # Instruction information
-        manipulator_arm[4:6,6:8] = pn.Spacer(styles=dict(background='turquoise')) # Pause and stop 
-        manipulator_arm[4:6,8:10] = pn.Spacer(styles=dict(background='lightblue')) # 3D Model of entire robot
+        manipulator_arm[0:6,0:2] = pn.Column(#  Manipulator Information
+            pnp.Markdown("**Manipulator Information**",styles=self.styles_markdown_text),
+            pnp.Markdown("Model: Bespoke Model",styles={'font-size': '10pt'}),
+            pnp.Markdown("Degrees of Freedom: 4",styles={'font-size': '10pt'}),
+            pnl.Divider(),
+            pnp.Markdown("Modified DH Table",styles=self.styles_markdown_text),
+            pnp.DataFrame(manipulator_data,sizing_mode='stretch_width'),
+            pnl.Divider(),
+            pnp.Markdown("Material",styles=self.styles_markdown_text),
+            pnp.Markdown("Hollow aluminium tubing",styles={'font-size': '10pt'}),
+            pnp.Markdown("Foam end-effector",styles={'font-size': '10pt'}),
+            pnl.Divider(),
+            pnp.Markdown("Angle Limits",styles=self.styles_markdown_text),
+            pnp.Markdown("Joint 1 || Min: -40 deg, Max: +40 deg",styles={'font-size': '10pt'}),
+            pnp.Markdown("Joint 2 || Min: -32.475, Max: +72.962",styles={'font-size': '10pt'}),
+            pnp.Markdown("Joint 3 || Min: -175, Max: -37.568",styles={'font-size': '10pt'}),
+            pnp.Markdown("Joint 4 || Min: -62.597, Max: 91.928",styles={'font-size': '10pt'}),
+            pnp.Markdown("Joint 5 || Min: -40 deg, Max: +40 deg",styles={'font-size': '10pt'}),
+            scroll = True
+        ) 
+        manipulator_arm[0:4,2:6] = self.manipulator_arm_path # Manipulator Plan
+        manipulator_arm[0:4,6:10] = self.camera_raw_panel # Camera
+        manipulator_arm[4:6,2:6] = self.action_home # Instruction information
+        manipulator_arm[4:6,6:8] = self.emergency_commands # Pause and stop 
+        manipulator_arm[4:6,8:10] = pnp.Image("./images/manipulator_schematic.jpg") # 3D Model of entire robot
 
         # Bind the radio button to change subpage motion, using all values, this means that the visual will change based on radio button choice
         content = pn.bind(self._ChangeSubPageMotion,value=radio,robot_base = robot_base, manipulator_arm=manipulator_arm)
