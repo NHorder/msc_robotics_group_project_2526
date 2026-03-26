@@ -40,7 +40,7 @@ class GUI():
         self.styles_buttons = ['primary','outline']
         self.styles_areas={"border": "2px solid lightgray"}
         self.styles_markdown_text = {'font-size': '12pt'}
-        self.styles_emergency_comands = "6em"
+        self.styles_emergency_comands = "4em"
 
         # Set intial - prevents automatic firing of binded functions
         self.inital = True
@@ -71,7 +71,7 @@ class GUI():
 
         # Bind the function "_ChangePage" to the radio button group in the sidebar
         # Enabled operators to change main page content
-        main_content = pn.bind(self._ChangePage,value=side_bar[2])
+        main_content = pn.bind(self._ChangePage,value=side_bar[4])
 
         # Disable intial
         # Initial is present as all triggerable functions are triggered once during creation to ensure
@@ -114,7 +114,7 @@ class GUI():
             pn.Row(pnp.Markdown("Action Progress",styles=self.styles_markdown_text,align='center'),self.progress_progress,align='center'),
             self.paint_indicator,
             sizing_mode='stretch_both',
-            scroll = True,height_policy="max"
+            height_policy="max"
         )
 
         self.system_health = pn.Column(
@@ -415,14 +415,13 @@ class GUI():
         """Method to create the sidebar of the application"""
 
         # Display the essential system information - including emergency stop and pause
-        essentials = pn.Column("Critical Information",sizing_mode="stretch_both")
 
         # Radio button for all available pages - could theoretically change the options to dict.keys
         # preventing users from accessing unfinished pages
         radio_button = pnw.RadioButtonGroup(options=["Home","Actions","Motion","Robot Information","Logging","Legal Information"],orientation = 'vertical',button_type=self.styles_buttons[0],button_style=self.styles_buttons[1],sizing_mode="stretch_both")
 
         # Setup the column layout
-        column = pn.Column(essentials,pnl.Divider(),radio_button,sizing_mode="stretch_both")
+        column = pn.Column(self.critical_info,pnl.Divider(),self.emergency_commands,pnl.Divider(),radio_button,sizing_mode="stretch_both")
         return column
     
     def _ChangePage(self,value):

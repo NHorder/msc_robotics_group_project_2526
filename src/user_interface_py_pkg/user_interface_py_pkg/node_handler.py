@@ -54,17 +54,11 @@ class NodeHandler():
             # Set empty list for subscriber data - means each key has an empty list item (for later updates)
             self.subscriber_data[sub_key] = []
 
-            # Set logger to that of first subscriber node to enable logging
-            #if self.logger == 0: self.logger = subscribers[sub_key].getLogger()
-
-        print("Hi?")
-
         # Spin nodes on a separate thread
         # A separate thread is required as spinning is a infinite looped execution
         self.daemon_thread = threading.Thread(target=self._SpinNodes,daemon=True)
         self.daemon_thread.start()
 
-        print("Hello?")
 
     def _SpinNodes(self):
         """
