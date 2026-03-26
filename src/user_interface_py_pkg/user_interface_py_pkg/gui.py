@@ -190,12 +190,41 @@ class GUI():
         
         # Mobile base sub-page creation
         robot_base = pnl.GridSpec(sizing_mode="stretch_both",)
-        robot_base[0:6,0:2] = pn.Spacer(styles=dict(background='red')) # Mobile Base Information
+        robot_base[0:6,0:2] = pn.Column(
+            pnp.Markdown("**Mobile Base Information**",styles=self.styles_markdown_text),
+            pnp.Markdown("Model: Bespoke Model",styles={'font-size': '10pt'}),
+            pnp.Markdown("Drive Configuration: 4 wheel drive",styles={'font-size': '10pt'}),
+            pnp.Markdown("Dimension: 610mm x 610mm",styles={'font-size': '10pt'}),
+            
+            pnl.Divider(),
+            pnp.Markdown("Electronics",styles=self.styles_markdown_text),
+            pnp.Markdown("Main Controller: Raspberry Pi Module",styles={'font-size': '10pt'}),
+            pnp.Markdown("Power Source: Li-ion battery pack",styles={'font-size': '10pt'}),
+
+            pnl.Divider(),
+
+            pnp.Markdown("Dimensions",styles=self.styles_markdown_text),
+            pnp.Markdown("Base Dimensions: 610mm x 610mm",styles={'font-size': '10pt'}),
+            pnp.Markdown("Wheels diameter: 50-60mm",styles={'font-size': '10pt'}),
+            pnp.Markdown("Top plate thickness: 5mm",styles={'font-size': '10pt'}),
+            pnp.Markdown("Side plate thickness: 2mm",styles={'font-size': '10pt'}),
+            pnp.Markdown("Bottom plate thickness: 3mm",styles={'font-size': '10pt'}),
+            pnp.Markdown("Load capcity per wheel: 30-40kg per wheel",styles={'font-size': '10pt'}),
+            pnp.Markdown("Weight: 35-45kg",styles={'font-size': '10pt'}),
+
+            pnl.Divider(),
+            pnp.Markdown("Materials",styles=self.styles_markdown_text),
+            pnp.Markdown("Base frame: Mild steel frame and aluminium sheet",styles={'font-size': '10pt'}),
+            pnp.Markdown("Top plate: Aluminium",styles={'font-size': '10pt'}),
+            pnp.Markdown("Side plate: Aluminium",styles={'font-size': '10pt'}),
+            pnp.Markdown("Bottom plate: Aluminium",styles={'font-size': '10pt'}),
+            scroll = True
+        )
         robot_base[0:4,2:6] = self.motion_plan # Motion Plan
         robot_base[0:4,6:10] = self.lidar_scatter # LiDAR
         robot_base[4:6,2:6] = self.action_home #Instruction information
         robot_base[4:6,6:8] = self.emergency_commands # Pause and stop 
-        robot_base[4:6,8:10] = pn.Spacer(styles=dict(background='red')) # 3D Model of entire robot
+        robot_base[4:6,8:10] = pnp.Image("./images/mobile_base.jpg") # 3D Model of entire robot
 
 
 
