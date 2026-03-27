@@ -1,0 +1,209 @@
+
+import rclpy
+from rclpy.node import Node
+from enum import Enum
+from std_msgs.msg import String
+import numpy as np
+
+class Status(Enum):
+    HEALTHY = 1
+    NO_CONNECTION = 2
+    ANOMALOUS = 3
+    FAULTY = 4
+    FATAL = 5
+
+
+class System_Health_Manager(Node):
+    def __init__(self):
+
+        self.initialising = True
+        self.fault_tolerance = 10
+        self.fatal_tolerance = 100
+
+        # Check if sensors are publishing information
+        self.node_status = {}
+        self.node_status["camera"] = Status.NO_CONNECTION
+        self.node_status["lidar"] = Status.NO_CONNECTION
+        self.node_status["imu"] = Status.NO_CONNECTION
+        self.node_status["odom"] = Status.NO_CONNECTION
+        self.node_status['gui'] = Status.NO_CONNECTION
+        
+
+        # Check to see if these systems are publishing information - they all should be (Simulation is easiest)
+        self.systems_status = {}
+        self.systems_status['GUI'] = Status.NO_CONNECTION
+        self.systems_status['Mobile_Base'] = Status.NO_CONNECTION
+        self.systems_status['Manipulator_Arm'] = Status.NO_CONNECTION
+        self.systems_status['Visual_Sensor_Systems'] = Status.NO_CONNECTION
+        self.systems_status['DataProcessing'] = Status.NO_CONNECTION
+        self.systems_status['Path_Planning'] = Status.NO_CONNECTION
+        self.systems_status['Path_Following'] = Status.NO_CONNECTION
+        self.systems_status['Simulation'] = Status.NO_CONNECTION
+
+        # All subscriber nodes, 
+        self.nodes = {}
+        self.nodes['clock']= self.create_subscription(String,'/clock',lambda msg: self._NodeHealth(msg, 'clockc'))
+        self.nodes["camera"] = self.create_subscription(String,'/camera/image_raw',lambda msg: self._NodeHealth(msg, 'camera'))
+        self.nodes["lidar"]  = self.create_subscription(String,'/scan',lambda msg: self._NodeHealth(msg, 'lidar'))
+        self.nodes["imu"] = self.create_subscription(String,'/imu',lambda msg: self._NodeHealth(msg, 'imu'))
+        self.nodes["odom"] = self.create_subscription(String,'/wheel_odom',lambda msg: self._NodeHealth(msg, 'odom'))
+        self.nodes["gui"] = self.create_subscription(String,'/gui/actions',lambda msg: self._NodeHealth(msg, 'gui'))
+
+        # Periodically run SystemHealth checks
+
+        self.prev_info = {}
+
+        self.initialising = False
+
+        self.publisher = self.create_publisher(
+            String,
+            '/system_health',
+            10
+        )
+
+        # Need to set up a timer for publishing
+
+
+    def _NodeHealth(self,msg,topic_key):
+        # Take previous reading and current reading. Find difference, compare with last results
+
+        if self._NodeHealth[topic_key] == Status.FAULTY:
+            # Throw errors and notifications
+            # Terminate current sequence     
+            return
+        
+        timestamp = msg.header.stamp
+        time = timestamp.sec + timestamp.nanosec / 1e9
+
+        # Try to access the data
+        try:
+            previous_time = self.node_prev[topic_key][0]
+            mean = self.node_prev[topic_key][1]
+            std = self.node_prev[topic_key][2]
+            num_seen = self.node_prev[topic_key][2]
+            anomalous_readings = self.node_prev[topic_key][3]
+        
+        # Else add it to the dictionary as the first item
+        except:
+            # Add it to the dictionary - if it's not already present
+            # Time = time, mean = time, std = 0, num_seen = 1
+            self.node_prev[topic_key] = [time,time,0.5,1]
+            return
+        
+        # Determine difference in time
+        delta_time = time - previous_time
+
+        # Determine if within range of mean and +3 stds
+        if (delta_time > mean+(3 * std)):
+
+            # If the new time difference exceeds known values signficantly, then it's anomalous
+            # Essentially marking it for something to keep an eye on
+            self._NodeHealth[topic_key] = Status.ANOMALOUS
+            anomalous_readings +=  1
+            # Send warning notification
+
+            # If it's presented over fault_tolerance readings, then it's faulty.
+            if anomalous_readings > self.fault_tolerance:
+                self._NodeHealth[topic_key] = Status.FAULTY
+                # Notify of fault
+                # Make request to slow down actions
+
+            # NOTE: anomalous_readings is NOT RESET, as if it faults a number of times, something is wrong. It should not be ignored
+            #       hence, if it occurs often, it will be noticed faster, with fatal occuring later
+
+            # Update anomalous reading count
+            self.node_prev[topic_key][3] = anomalous_readings
+
+            # Return: Does not affect mean or std, given it's anomalous nature - it'll squew results otherwise
+            return
+
+        # Else it's fine
+        else:
+            self.node_status[topic_key] = Status.HEALTHY
+
+        # Update mean
+        delta_mean = delta_time - mean 
+        mean_new = mean + (delta_mean / num_seen)
+        
+        # Update std
+        sum_squares = sum_squares + delta_mean*(delta_time-mean_new)
+        var = sum_squares / num_seen 
+        std_new = np.sqrt(var)
+
+        # Update node
+        self.node_prev[topic_key] = [time,mean_new,std_new,num_seen+1,anomalous_readings]
+    
+
+    def _SystemHealth(self):
+
+        # Update GUI status - solely based on GUI node
+        self.systems_status['GUI'] = self.node_status['gui']
+
+        ## Mobile Base 
+        self._SystemHealthCheck('Mobile_Base',['imu','odom'])
+
+        ##
+        #self._SystemHealthCheck('Manipulator_Arm') # All nodes of manipulator arm, input and output
+
+        ##
+        self._SystemHealthCheck('Visual_Sensor_Systems',['camara','lidar']) # And any other sensors
+
+        ##
+        self._SystemHealthCheck('DataProcessing',['camera','lidar']) # And processed output nodes
+
+        ##
+        #self._SystemHealthCheck('Path_Planning') # Base planning and manipulator arm following
+
+        ##
+        #self._SystemHealthCheck('Path_Following') # base following and manipualtor arm following
+
+        ## 
+        self._SystemHealthCheck('Simulation') = self.node_status['clock']
+
+    
+    def _SystemHealthCheck(self,system,nodes):
+
+        # Init counters
+        health = 0
+        anom = 0
+        offline = 0
+        num_nodes = len(nodes)
+
+        for node in nodes:
+            if self.node_status[node] == Status.HEALTHY: health+=1
+            elif self.node_status[node] == Status.NO_CONNECTION: offline+1
+            elif self.node_status[node] == Status.ANOMALOUS: anom += 1
+            else:
+                # If ANY node is Faulty, throw an immediate fatal error - it should not be acting
+                # All further actions should be blocked - and to stop the subscriber. 
+                self.systems_status[system] = Status.FATAL
+                # Throw immediate fatal error
+                return
+
+        # If all nodes are healthy, then the system is healthy
+        if num_nodes == health:
+            self.systems_status[system] = Status.HEALTHY
+
+        # If all nodes haven't sent any messages (Meaning no status change), then it's offline
+        elif num_nodes == offline:
+            self.systems_status[system] = Status.NO_CONNECTION
+
+        # If less than 25% of the nodes are anomlous, maintain system, mark as anomalous
+        elif (offline != 0) or (anom / num_nodes) <= 0.25:
+            # Notify issue
+            self.systems_status[system] = Status.ANOMALOUS
+        
+        # Otherwise, more than 25% of nodes are reporting anomalous at the SAME TIME, mark as faulty, begin shutdown procedures
+        else:
+            # Update system to show faulty state
+            self.systems_status[system] = Status.FATAL
+
+            # By setting the last node accessed to FAULTY, it will automatically re-trigger the fault detection next loop
+            self.node_status[node] = Status.FATAL
+
+            # Send intruction to terminate and block further mobile base commands
+            # Send notification of fatal error
+            
+    def _Publish(self):
+        pass
+
