@@ -7,14 +7,15 @@
 
 #%%
 # Imports!
+import rclpy
 import numpy as np
 import asyncio
 import logging
 import holoviews as hv
 import panel as pn 
 import pandas as pd
+import threading
 from action import Action
-from node_handler import main as main_nodehandler
 from node_handler import NodeHandler
 from holoviews.streams import Pipe
 from panel import pane as pnp
@@ -34,7 +35,7 @@ class GUI():
         """Initialisation function. Prepares Interface for screen creation"""
 
         # Establish link to node handler
-        self.node_handler = main_nodehandler()
+        self.node_handler = NodeHandler()
 
         # Set button style - will affect all buttons in the UI
         self.styles_buttons = ['primary','outline']
@@ -53,6 +54,10 @@ class GUI():
         self.planned_actions = []
         self.create_actions_widgets = []
         self.action_list  = 0
+
+        # Spin node_handler on a separate thread (means main thread is not blocked)
+        self.daemon_thread = threading.Thread(target=self.node_handler.Spin,daemon=True)
+        self.daemon_thread.start()
 
     def RunApp(self):
         """
@@ -443,6 +448,9 @@ def main(args=None):
 #%%
 # Activation!
 if __name__ == "__main__":
+
+    rclpy.init()
+
     # Create GUI class
     gui = GUI()
 
@@ -453,3 +461,4 @@ if __name__ == "__main__":
     pn.serve(app)
 
 # %%
+gui.node_handler.subscribers['SysHP']
