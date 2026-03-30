@@ -24,6 +24,7 @@ setup(
     },
     entry_points={
         'console_scripts': [
+            'health = system_manager_py_pkg.system_health_manager:main',
         ],
     },
 )
