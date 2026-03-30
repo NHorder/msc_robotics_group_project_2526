@@ -40,6 +40,7 @@ class System_Manager(Node):
         """
         Initialisation Method
         """
+        super().__init__('system_manager')
 
         # Required variable due to setup of nodes
         # Each subscription will initially fire once, causing potential issues on setup

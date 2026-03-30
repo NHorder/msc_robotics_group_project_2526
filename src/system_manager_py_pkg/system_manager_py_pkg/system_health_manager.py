@@ -13,6 +13,7 @@ from std_msgs.msg import String
 from diagnostic_msgs.msg import DiagnosticStatus,DiagnosticArray
 import numpy as np
 
+
 """
 Enumerator Class for custom type Node Status - Based on difference between last message and new message (using a rolling mean and standard deviation)
 HEALTHY: Indicates node is functioning correctly
@@ -39,15 +40,16 @@ class System_Health_Manager(Node):
         """
         Initialisation Method - Prepares class for execution
         """
+        super().__init__('system_health_manager')
 
         # Initial variables
         self.initialising = True
         self.fault_tolerance = 10
         self.prev_info = {}
         self.publisher = self.create_publisher(
-            DiagnosticArray,
-            '/system_health',
-            10
+           DiagnosticArray,
+           '/system_health',
+           10
         )
 
         #NOTE: This does not account for health of the data - that's at sensor processing level
@@ -62,6 +64,7 @@ class System_Health_Manager(Node):
         self.node_status["imu"] = Node_Status.NO_CONNECTION
         self.node_status["odom"] = Node_Status.NO_CONNECTION
         self.node_status['gui'] = Node_Status.NO_CONNECTION
+        self.node_status['clock'] = Node_Status.NO_CONNECTION
 
         # Health of systems
         self.systems_status = {}
@@ -77,18 +80,21 @@ class System_Health_Manager(Node):
         # Creation of subscribers
         # ## Not done yet, need more, awaiting completion of other modules 
         self.nodes = {}
-        self.nodes['clock']= self.create_subscription(String,'/clock',lambda msg: self._NodeHealth(msg, 'clockc'))
-        self.nodes["camera"] = self.create_subscription(String,'/camera/image_raw',lambda msg: self._NodeHealth(msg, 'camera'))
-        self.nodes["lidar"]  = self.create_subscription(String,'/scan',lambda msg: self._NodeHealth(msg, 'lidar'))
-        self.nodes["imu"] = self.create_subscription(String,'/imu',lambda msg: self._NodeHealth(msg, 'imu'))
-        self.nodes["odom"] = self.create_subscription(String,'/wheel_odom',lambda msg: self._NodeHealth(msg, 'odom'))
-        self.nodes["gui"] = self.create_subscription(String,'/gui/actions',lambda msg: self._NodeHealth(msg, 'gui'))
+        self.nodes['clock']= self.create_subscription(String,'/clock',lambda msg: self._NodeHealth(msg, 'clock'),10)
+
+        self.nodes["camera"] = self.create_subscription(String,'/camera/image_raw',lambda msg: self._NodeHealth(msg, 'camera'),10)
+        self.nodes["lidar"]  = self.create_subscription(String,'/scan',lambda msg: self._NodeHealth(msg, 'lidar'),10)
+        self.nodes["imu"] = self.create_subscription(String,'/imu',lambda msg: self._NodeHealth(msg, 'imu'),10)
+        self.nodes["odom"] = self.create_subscription(String,'/wheel_odom',lambda msg: self._NodeHealth(msg, 'odom'),10)
+        self.nodes["gui"] = self.create_subscription(String,'/gui/actions',lambda msg: self._NodeHealth(msg, 'gui'),10)
 
         # Periodically run SystemHealth checks
         self.timer = self.create_timer(0.5, self._SystemHealth)
         
         # Disable intialising
         self.initialising = False
+
+        self.get_logger().info("System-Health-Manager: Running!")
 
     def _NodeHealth(self,msg,topic_key):
         """
@@ -186,7 +192,7 @@ class System_Health_Manager(Node):
         #self._SystemHealthCheck('Manipulator_Arm') # All nodes of manipulator arm, input and output
 
         ## Visual Sensor Systems (Lidar, camera, etc)
-        self._SystemHealthCheck('Visual_Sensor_Systems',['camara','lidar']) # And any other sensors
+        self._SystemHealthCheck('Visual_Sensor_Systems',['camera','lidar']) # And any other sensors
 
         ## Data Processing (package)
         self._SystemHealthCheck('DataProcessing',['camera','lidar']) # And processed output nodes
@@ -199,6 +205,9 @@ class System_Health_Manager(Node):
 
         ## Simulation (package) - 'clock' is used as it's automatically created alongside the simulation
         self._SystemHealthCheck('Simulation',['clock'])
+
+        # Publish results
+        self._Publish()
 
     def _SystemHealthCheck(self,system,nodes):
         """
@@ -248,6 +257,8 @@ class System_Health_Manager(Node):
 
             # Send intruction to terminate and block further mobile base commands
             # Send notification of faulty node
+        
+
             
     def _Publish(self):
         """
@@ -271,3 +282,26 @@ class System_Health_Manager(Node):
         # Publish
         self.publisher.publish(msg)
 
+
+def main(args=None):
+    rclpy.init(args=args)
+    
+    # Load node
+    node = System_Health_Manager()
+
+    # Spin node
+    try:
+        rclpy.spin(node)
+    except KeyboardInterrupt:
+        # On keyboard interrupt, shut down the system
+        pass
+    finally:
+        # Log deactivation of node
+        node.get_logger().info("UI-SUB-LIDAR || Status: Inactive")
+
+        # Destroy node and shutdown
+        node.destroy_node()
+        rclpy.shutdown()
+
+if __name__ == '__main__':
+    main()
