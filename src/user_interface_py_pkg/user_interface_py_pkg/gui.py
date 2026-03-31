@@ -17,6 +17,7 @@ import pandas as pd
 import threading
 from action import Action
 from node_handler import NodeHandler
+from gui_helper import GUI_Helper
 from holoviews.streams import Pipe
 from panel import pane as pnp
 from panel import layout as pnl
@@ -24,7 +25,6 @@ from panel import widgets as pnw
 pn.extension(notifications=True)
 pn.extension('terminal')
 hv.extension('bokeh')
-import asyncio
 
 """
 GUI Class handles the creation and utilisation of the user interface
@@ -33,15 +33,25 @@ class GUI():
     
     def __init__(self):
         """Initialisation function. Prepares Interface for screen creation"""
+        # Set button style - will affect all buttons in the UI
+        self.styles = {}
+        self.styles['buttons'] = ['primary','outline']
+        self.styles['areas'] = {"border": "2px solid lightgray"}
+        self.styles['markdown_text_title'] = {'font-size': '12pt'}
+        self.styles['markdown_text_reg'] = {'font-size': '10pt'}
+        self.styles['emergency_command'] = "4em"
+
 
         # Establish link to node handler
         self.node_handler = NodeHandler()
 
-        # Set button style - will affect all buttons in the UI
-        self.styles_buttons = ['primary','outline']
-        self.styles_areas={"border": "2px solid lightgray"}
-        self.styles_markdown_text = {'font-size': '12pt'}
-        self.styles_emergency_comands = "4em"
+        # Spin node_handler on a separate thread (means main thread is not blocked)
+        self.daemon_thread = threading.Thread(target=self.node_handler.Spin,daemon=True)
+        self.daemon_thread.start()
+
+        self.helper = GUI_Helper(self.node_handler,self.styles)
+
+        
 
         # Set intial - prevents automatic firing of binded functions
         self.inital = True
@@ -55,9 +65,7 @@ class GUI():
         self.create_actions_widgets = []
         self.action_list  = 0
 
-        # Spin node_handler on a separate thread (means main thread is not blocked)
-        self.daemon_thread = threading.Thread(target=self.node_handler.Spin,daemon=True)
-        self.daemon_thread.start()
+        
 
     def RunApp(self):
         """
@@ -96,71 +104,75 @@ class GUI():
     
     def _CreateGraphics(self):
 
-        # Create Lidar visual link
-        lidar_pipe = Pipe(data = [])
-        task = asyncio.create_task(self.node_handler.GetData('Lidar',lidar_pipe))
-        lidar_dmap = hv.DynamicMap(hv.Scatter,streams=[lidar_pipe]).opts(responsive=True,color='black')
-        robot_loc = hv.Scatter([(0,0)],label='Robot Centre').opts(color='blue',marker='star',size=10)
-        self.lidar_scatter = pnl.WidgetBox(
-            pnp.Markdown("**2D LiDAR**",styles=self.styles_markdown_text),
-            (lidar_dmap*robot_loc),sizing_mode='stretch_both')
+        self.helper_graphics = self.helper.CreateGraphics()
+
+        self.lidar_scatter = self.helper_graphics['Lidar']
+
+        # # Create Lidar visual link
+        # lidar_pipe = Pipe(data = [])
+        # task = asyncio.create_task(self.node_handler.GetData('Lidar',lidar_pipe))
+        # lidar_dmap = hv.DynamicMap(hv.Scatter,streams=[lidar_pipe]).opts(responsive=True,color='black')
+        # robot_loc = hv.Scatter([(0,0)],label='Robot Centre').opts(color='blue',marker='star',size=10)
+        # self.lidar_scatter = pnl.WidgetBox(
+        #     pnp.Markdown("**2D LiDAR**",styles=self.styles['markdown_text_title']),
+        #     (lidar_dmap*robot_loc),sizing_mode='stretch_both')
         
-        self.motion_plan = pn.Column(self.lidar_scatter,pnp.Markdown("Mobile Base: No Path Planned",styles=self.styles_markdown_text,align='center'),sizing_mode='stretch_both')
+        self.motion_plan = pn.Column(self.lidar_scatter,pnp.Markdown("Mobile Base: No Path Planned",styles=self.styles['markdown_text_title'],align='center'),sizing_mode='stretch_both')
 
         self.battery_progress = pn.indicators.Progress(name='Battery Level',active=True,sizing_mode='stretch_width',bar_color='success',align='center')
         self.battery_progress.value = 87
         self.paint_indicator = pn.indicators.LinearGauge(name='Paint Levels',value=2.6,format='{value:.1f} kg',bounds=(0.7,25.4),colors=['red','gold','green'],horizontal=True,sizing_mode='stretch_width',align='center')
-        self.progress_progress = pnp.Markdown("No Task in Progress",styles=self.styles_markdown_text)
+        self.progress_progress = pnp.Markdown("No Task in Progress",styles=self.styles['markdown_text_title'])
         self.progress_progress.value = 12
 
         self.critical_info = pn.Column(
-            pnp.Markdown("**Critical Information**",styles=self.styles_markdown_text,align='center'),
-            pn.Row(pnp.Markdown("Battery",styles=self.styles_markdown_text,align='center'),self.battery_progress,align='center'),
-            pn.Row(pnp.Markdown("Action Progress",styles=self.styles_markdown_text,align='center'),self.progress_progress,align='center'),
+            pnp.Markdown("**Critical Information**",styles=self.styles['markdown_text_title'],align='center'),
+            pn.Row(pnp.Markdown("Battery",styles=self.styles['markdown_text_title'],align='center'),self.battery_progress,align='center'),
+            pn.Row(pnp.Markdown("Action Progress",styles=self.styles['markdown_text_title'],align='center'),self.progress_progress,align='center'),
             self.paint_indicator,
             sizing_mode='stretch_both',
             height_policy="max"
         )
 
         self.system_health = pn.Column(
-            pnp.Markdown("**System Health**",styles=self.styles_markdown_text,align='center'),
+            pnp.Markdown("**System Health**",styles=self.styles['markdown_text_title'],align='center'),
             pnl.Divider(),
-            pnp.Markdown("Safety Systems : Online",styles={'font-size': '10pt'}),
-            pnp.Markdown("Safety Contingencies : On-Standby",styles={'font-size': '10pt'}),
-
-            pnl.Divider(),
-
-            pnp.Markdown("Lidar  : Online",styles={'font-size': '10pt'}),
-            pnp.Markdown("Camera : Online",styles={'font-size': '10pt'}),
+            pnp.Markdown("Safety Systems : Online",styles=self.styles['markdown_text_reg']),
+            pnp.Markdown("Safety Contingencies : On-Standby",styles=self.styles['markdown_text_reg']),
 
             pnl.Divider(),
 
-            pnp.Markdown("Manipulator : Connected",styles={'font-size': '10pt'}),
-            pnp.Markdown("Mobile Base : Connected",styles={'font-size': '10pt'}),
+            pnp.Markdown("Lidar  : Online",styles=self.styles['markdown_text_reg']),
+            pnp.Markdown("Camera : Online",styles=self.styles['markdown_text_reg']),
 
             pnl.Divider(),
 
-            pnp.Markdown("Localisation: Offline",styles={'font-size': '10pt'}),
-            pnp.Markdown("Mobile Base Motion Planning : Offline ",styles={'font-size': '10pt'}),
-            pnp.Markdown("Manipulator Motion Planning : Offline ",styles={'font-size': '10pt'}),
+            pnp.Markdown("Manipulator : Connected",styles=self.styles['markdown_text_reg']),
+            pnp.Markdown("Mobile Base : Connected",styles=self.styles['markdown_text_reg']),
+
+            pnl.Divider(),
+
+            pnp.Markdown("Localisation: Offline",styles=self.styles['markdown_text_reg']),
+            pnp.Markdown("Mobile Base Motion Planning : Offline ",styles=self.styles['markdown_text_reg']),
+            pnp.Markdown("Manipulator Motion Planning : Offline ",styles=self.styles['markdown_text_reg']),
             sizing_mode='stretch_both',
             scroll=True
         )
 
         self.emergency_commands = pn.Column(
-            pnp.Markdown("**Commands**",styles=self.styles_markdown_text),
+            pnp.Markdown("**Commands**",styles=self.styles['markdown_text_title']),
             pn.Row(
-                pnw.ButtonIcon(icon='player-play',size=self.styles_emergency_comands),
-                pnw.ButtonIcon(icon='player-stop',size=self.styles_emergency_comands),
-                pnw.ButtonIcon(icon='player-pause',size=self.styles_emergency_comands),
-                pnw.ButtonIcon(icon='player-skip-forward',size=self.styles_emergency_comands),
+                pnw.ButtonIcon(icon='player-play',size=self.styles['emergency_command']),
+                pnw.ButtonIcon(icon='player-stop',size=self.styles['emergency_command']),
+                pnw.ButtonIcon(icon='player-pause',size=self.styles['emergency_command']),
+                pnw.ButtonIcon(icon='player-skip-forward',size=self.styles['emergency_command']),
                 align='center'
             )
         )
 
         img = pnp.Image("./images/snapshot.jpg",sizing_mode='stretch_both')
-        self.camera_raw_panel = pn.WidgetBox(pnp.Markdown("**RGB-D Camera**",styles=self.styles_markdown_text),img,sizing_mode='stretch_both')
-        self.manipulator_arm_path = pn.WidgetBox(img,pnp.Markdown("No Manipulator Path Planned",styles=self.styles_markdown_text,align='center'),sizing_mode='stretch_both')
+        self.camera_raw_panel = pn.WidgetBox(pnp.Markdown("**RGB-D Camera**",styles=self.styles['markdown_text_title']),img,sizing_mode='stretch_both')
+        self.manipulator_arm_path = pn.WidgetBox(img,pnp.Markdown("No Manipulator Path Planned",styles=self.styles['markdown_text_title'],align='center'),sizing_mode='stretch_both')
 
         self.action_home = pn.WidgetBox(self.progress_progress)
 
@@ -168,7 +180,7 @@ class GUI():
         """Method to create the home screen layout"""
 
         # Turns the page into a fixed grid system
-        base = pnl.GridSpec(sizing_mode="stretch_both",styles = self.styles_areas)
+        base = pnl.GridSpec(sizing_mode="stretch_both",styles = self.styles['areas'])
 
         base[0:2,0:2] = self.critical_info # Essentials: battery, progress, paint levels, system health
         base[2:5,0:2] = self.system_health # Robot Information, world information
@@ -191,38 +203,38 @@ class GUI():
         """Method to create the robot motion screen"""
 
         # Radio button enabled user to select between Mobile Base and Manipulator Arm
-        radio = pnw.RadioButtonGroup(options=["Mobile Base","Manipulator Arm"],sizing_mode="stretch_width",button_type=self.styles_buttons[0],button_style=self.styles_buttons[1])
+        radio = pnw.RadioButtonGroup(options=["Mobile Base","Manipulator Arm"],sizing_mode="stretch_width",button_type=self.styles['buttons'][0],button_style=self.styles['buttons'][1])
         
         # Mobile base sub-page creation
         robot_base = pnl.GridSpec(sizing_mode="stretch_both",)
         robot_base[0:6,0:2] = pn.Column(
-            pnp.Markdown("**Mobile Base Information**",styles=self.styles_markdown_text),
-            pnp.Markdown("Model: Bespoke Model",styles={'font-size': '10pt'}),
-            pnp.Markdown("Drive Configuration: 4 wheel drive",styles={'font-size': '10pt'}),
-            pnp.Markdown("Dimension: 610mm x 610mm",styles={'font-size': '10pt'}),
+            pnp.Markdown("**Mobile Base Information**",styles=self.styles['markdown_text_title']),
+            pnp.Markdown("Model: Bespoke Model",styles=self.styles['markdown_text_reg']),
+            pnp.Markdown("Drive Configuration: 4 wheel drive",styles=self.styles['markdown_text_reg']),
+            pnp.Markdown("Dimension: 610mm x 610mm",styles=self.styles['markdown_text_reg']),
             
             pnl.Divider(),
-            pnp.Markdown("Electronics",styles=self.styles_markdown_text),
-            pnp.Markdown("Main Controller: Raspberry Pi Module",styles={'font-size': '10pt'}),
-            pnp.Markdown("Power Source: Li-ion battery pack",styles={'font-size': '10pt'}),
+            pnp.Markdown("Electronics",styles=self.styles['markdown_text_title']),
+            pnp.Markdown("Main Controller: Raspberry Pi Module",styles=self.styles['markdown_text_reg']),
+            pnp.Markdown("Power Source: Li-ion battery pack",styles=self.styles['markdown_text_reg']),
 
             pnl.Divider(),
 
-            pnp.Markdown("Dimensions",styles=self.styles_markdown_text),
-            pnp.Markdown("Base Dimensions: 610mm x 610mm",styles={'font-size': '10pt'}),
-            pnp.Markdown("Wheels diameter: 50-60mm",styles={'font-size': '10pt'}),
-            pnp.Markdown("Top plate thickness: 5mm",styles={'font-size': '10pt'}),
-            pnp.Markdown("Side plate thickness: 2mm",styles={'font-size': '10pt'}),
-            pnp.Markdown("Bottom plate thickness: 3mm",styles={'font-size': '10pt'}),
-            pnp.Markdown("Load capcity per wheel: 30-40kg per wheel",styles={'font-size': '10pt'}),
-            pnp.Markdown("Weight: 35-45kg",styles={'font-size': '10pt'}),
+            pnp.Markdown("Dimensions",styles=self.styles['markdown_text_title']),
+            pnp.Markdown("Base Dimensions: 610mm x 610mm",styles=self.styles['markdown_text_reg']),
+            pnp.Markdown("Wheels diameter: 50-60mm",styles=self.styles['markdown_text_reg']),
+            pnp.Markdown("Top plate thickness: 5mm",styles=self.styles['markdown_text_reg']),
+            pnp.Markdown("Side plate thickness: 2mm",styles=self.styles['markdown_text_reg']),
+            pnp.Markdown("Bottom plate thickness: 3mm",styles=self.styles['markdown_text_reg']),
+            pnp.Markdown("Load capcity per wheel: 30-40kg per wheel",styles=self.styles['markdown_text_reg']),
+            pnp.Markdown("Weight: 35-45kg",styles=self.styles['markdown_text_reg']),
 
             pnl.Divider(),
-            pnp.Markdown("Materials",styles=self.styles_markdown_text),
-            pnp.Markdown("Base frame: Mild steel frame and aluminium sheet",styles={'font-size': '10pt'}),
-            pnp.Markdown("Top plate: Aluminium",styles={'font-size': '10pt'}),
-            pnp.Markdown("Side plate: Aluminium",styles={'font-size': '10pt'}),
-            pnp.Markdown("Bottom plate: Aluminium",styles={'font-size': '10pt'}),
+            pnp.Markdown("Materials",styles=self.styles['markdown_text_title']),
+            pnp.Markdown("Base frame: Mild steel frame and aluminium sheet",styles=self.styles['markdown_text_reg']),
+            pnp.Markdown("Top plate: Aluminium",styles=self.styles['markdown_text_reg']),
+            pnp.Markdown("Side plate: Aluminium",styles=self.styles['markdown_text_reg']),
+            pnp.Markdown("Bottom plate: Aluminium",styles=self.styles['markdown_text_reg']),
             scroll = True
         )
         robot_base[0:4,2:6] = self.motion_plan # Motion Plan
@@ -238,23 +250,23 @@ class GUI():
         # Manipulator arm sub-page creation
         manipulator_arm = pnl.GridSpec(sizing_mode="stretch_both",)
         manipulator_arm[0:6,0:2] = pn.Column(#  Manipulator Information
-            pnp.Markdown("**Manipulator Information**",styles=self.styles_markdown_text),
-            pnp.Markdown("Model: Bespoke Model",styles={'font-size': '10pt'}),
-            pnp.Markdown("Degrees of Freedom: 4",styles={'font-size': '10pt'}),
+            pnp.Markdown("**Manipulator Information**",styles=self.styles['markdown_text_title']),
+            pnp.Markdown("Model: Bespoke Model",styles=self.styles['markdown_text_reg']),
+            pnp.Markdown("Degrees of Freedom: 4",styles=self.styles['markdown_text_reg']),
             pnl.Divider(),
-            pnp.Markdown("Modified DH Table",styles=self.styles_markdown_text),
+            pnp.Markdown("Modified DH Table",styles=self.styles['markdown_text_title']),
             pnp.DataFrame(manipulator_data,sizing_mode='stretch_width'),
             pnl.Divider(),
-            pnp.Markdown("Material",styles=self.styles_markdown_text),
-            pnp.Markdown("Hollow aluminium tubing",styles={'font-size': '10pt'}),
-            pnp.Markdown("Foam end-effector",styles={'font-size': '10pt'}),
+            pnp.Markdown("Material",styles=self.styles['markdown_text_title']),
+            pnp.Markdown("Hollow aluminium tubing",styles=self.styles['markdown_text_reg']),
+            pnp.Markdown("Foam end-effector",styles=self.styles['markdown_text_reg']),
             pnl.Divider(),
-            pnp.Markdown("Angle Limits",styles=self.styles_markdown_text),
-            pnp.Markdown("Joint 1 || Min: -40 deg, Max: +40 deg",styles={'font-size': '10pt'}),
-            pnp.Markdown("Joint 2 || Min: -32.475, Max: +72.962",styles={'font-size': '10pt'}),
-            pnp.Markdown("Joint 3 || Min: -175, Max: -37.568",styles={'font-size': '10pt'}),
-            pnp.Markdown("Joint 4 || Min: -62.597, Max: 91.928",styles={'font-size': '10pt'}),
-            pnp.Markdown("Joint 5 || Min: -40 deg, Max: +40 deg",styles={'font-size': '10pt'}),
+            pnp.Markdown("Angle Limits",styles=self.styles['markdown_text_title']),
+            pnp.Markdown("Joint 1 || Min: -40 deg, Max: +40 deg",styles=self.styles['markdown_text_reg']),
+            pnp.Markdown("Joint 2 || Min: -32.475, Max: +72.962",styles=self.styles['markdown_text_reg']),
+            pnp.Markdown("Joint 3 || Min: -175, Max: -37.568",styles=self.styles['markdown_text_reg']),
+            pnp.Markdown("Joint 4 || Min: -62.597, Max: 91.928",styles=self.styles['markdown_text_reg']),
+            pnp.Markdown("Joint 5 || Min: -40 deg, Max: +40 deg",styles=self.styles['markdown_text_reg']),
             scroll = True
         ) 
         manipulator_arm[0:4,2:6] = self.manipulator_arm_path # Manipulator Plan
@@ -286,13 +298,13 @@ class GUI():
         self.action_home.append(pnp.Markdown("No Actions Planned",styles={'font-size': '11pt'},align='center'))
 
         # Code to generate the modify or create action area
-        action_planner_name = pnp.Markdown("**Action Planner**",styles=self.styles_markdown_text,align='center')
+        action_planner_name = pnp.Markdown("**Action Planner**",styles=self.styles['markdown_text_title'],align='center')
         action_name = pnw.TextInput(name="Action Name:",placeholder="Action X",align='center')
         
         wall_select = pnw.Select(name="Select Wall to Paint",options = [1,2,3,4],align='center')
         action_location_string = pnp.Markdown("When to start action: ",styles={'font-size': '11pt'},align='center')
-        action_location = pnw.RadioButtonGroup(options=["Now","Next","Later"],value="Later",button_type=self.styles_buttons[0],button_style=self.styles_buttons[1]) # Radio button: Now, Next, Later
-        confirm_button = pnw.Button(name="Save Action",button_type="success",button_style=self.styles_buttons[1],align='center')
+        action_location = pnw.RadioButtonGroup(options=["Now","Next","Later"],value="Later",button_type=self.styles['buttons'][0],button_style=self.styles['buttons'][1]) # Radio button: Now, Next, Later
+        confirm_button = pnw.Button(name="Save Action",button_type="success",button_style=self.styles['buttons'][1],align='center')
         
         # Save the inputs as a class variable, enables access from other functions (when the 'Save Action' button is pressed)
         self.create_actions_widgets = [action_name,wall_select,action_location]
@@ -402,14 +414,13 @@ class GUI():
                     self.action_home.append(pnp.Markdown(f"Next Action: {action.name} || Wall: {action.wall}",styles={'font-size': '11pt'},align="center"),)
          
 
-
     def _CreateRobotInfoScreen(self):
         pass
 
     def _CreateLoggingScreen(self):
 
-        logging_info = pn.Column(pnp.Markdown("Critical Logging",styles=self.styles_markdown_text,align='center'),pnw.Terminal("V.I.S.N.A.T Terminal",sizing_mode = 'stretch_both'))
-        logging_critical = pn.Column(pnp.Markdown("All Logging",styles=self.styles_markdown_text,align='center'),pnw.Terminal("V.I.S.N.A.T Critical Terminal", sizing_mode = 'stretch_both'))
+        logging_info = pn.Column(pnp.Markdown("Critical Logging",styles=self.styles['markdown_text_title'],align='center'),pnw.Terminal("V.I.S.N.A.T Terminal",sizing_mode = 'stretch_both'))
+        logging_critical = pn.Column(pnp.Markdown("All Logging",styles=self.styles['markdown_text_title'],align='center'),pnw.Terminal("V.I.S.N.A.T Critical Terminal", sizing_mode = 'stretch_both'))
 
         logging_base = pn.Row(logging_critical,logging_info,sizing_mode='stretch_both')
 
@@ -423,7 +434,7 @@ class GUI():
 
         # Radio button for all available pages - could theoretically change the options to dict.keys
         # preventing users from accessing unfinished pages
-        radio_button = pnw.RadioButtonGroup(options=["Home","Actions","Motion","Robot Information","Logging","Legal Information"],orientation = 'vertical',button_type=self.styles_buttons[0],button_style=self.styles_buttons[1],sizing_mode="stretch_both")
+        radio_button = pnw.RadioButtonGroup(options=["Home","Actions","Motion","Robot Information","Logging","Legal Information"],orientation = 'vertical',button_type=self.styles['buttons'][0],button_style=self.styles['buttons'][1],sizing_mode="stretch_both")
 
         # Setup the column layout
         column = pn.Column(self.critical_info,pnl.Divider(),self.emergency_commands,pnl.Divider(),radio_button,sizing_mode="stretch_both")
@@ -460,5 +471,23 @@ if __name__ == "__main__":
     # Programmically serve the app
     pn.serve(app)
 
+
 # %%
-gui.node_handler.subscribers['SysHP']
+gui.helper_graphics['SystemHealth'].show()
+# %%
+lidar = gui.node_handler.subscriber_data['Lidar']
+lidar_raw = gui.node_handler.subscriber_data['unique']
+# %%
+lidar
+# %%
+lidar_raw.ranges
+
+#%%
+lidar_raw
+# %%
+lidar_raw.angle_min
+#lidar_raw.angle_max
+#lidar_raw.angle_increment
+
+#%%
+lidar

@@ -17,13 +17,15 @@ class NodeHandler(Node):
         super().__init__('gui_node_handler')
         self.decoder = Decoder()
 
-
         self.subscribers = {}
-        self.subscribers['Camera'] = self.create_subscription(Image,'/camera/image_raw',lambda msg: self.NotifyHandler(msg,'Camera'),10)
-        self.subscribers['Lidar'] = self.create_subscription(LaserScan,'/scan',lambda msg: self.NotifyHandler(msg,'Lidar'),10)
-        self.subscribers['SysHP'] = self.create_subscription(DiagnosticArray,'/system_health',lambda msg: self.NotifyHandler(msg,'SysHP'),10)
+        self.subscriber_data = {}
+        self.subscribers['Camera'] = self.create_subscription(Image,'/camera/image_raw',lambda msg: self._UpdateData(msg,'Camera'),10)
+        self.subscribers['Lidar'] = self.create_subscription(LaserScan,'/scan',lambda msg: self._UpdateData(msg,'Lidar'),10)
+        self.subscribers['SysHP'] = self.create_subscription(DiagnosticArray,'/system_health',lambda msg: self._UpdateData(msg,'SysHP'),10)
 
-        pass
+
+        self.subscriber_data["Lidar"] = []
+        self.subscriber_data['SysHP'] = {}
 
     def Spin(self):
         # Spin self (as self is a node)
@@ -43,6 +45,9 @@ class NodeHandler(Node):
 
         if (id in self.subscribers.keys()):
             self.subscriber_data[id] = self.decoder.Decode_Msg(msg,id)
+
+            if (id == 'Lidar'):
+                self.subscriber_data['unique'] = msg
 
 
     async def GetData(self,id:String, gui_pipe: Pipe):
