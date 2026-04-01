@@ -12,6 +12,7 @@ from enum import Enum
 
 #%%
 
+## Helper Classes
 class Dir(Enum):
     NONE = 1
     DELTA_X = 2
@@ -25,35 +26,52 @@ class Line:
 
 
 
-
+# Main Class
 class Lidar_Processing(Node):
 
     def __init__(self):
         super().__init__('lidar_processing')
-        self.wall_algorithm - DetermineWalls()
+        self.wall_algorithm = DetermineWalls()
 
-        self.first_run = True
+        self._calculate_walls = True
 
         self.subscriber = self.create_subscription(LaserScan,'/scan',self._Process,10)
-        self.subscriber = self.create_subscription(Bool,'/wall/recalculate',10) # Will need someone to determine room dimensions, if room dimensions change, then rescan for walls
-        self.publisher_first_run = self.create_publisher(String,'/wall/designation',10)
-        self.publisher_main = self.create_publisher(String,'/processed/scan',10)
+        self.subscriber = self.create_subscription(Bool,'/wall/recalculate',self._Recalculate,10) # Will need someone to determine room dimensions, if room dimensions change, then rescan for walls
+        self.publisher_wall_designation = self.create_publisher(String,'/wall/designation',10)
+        self.publisher_main = self.create_publisher(LaserScan,'/processed/scan',10)
 
+
+    def _Recalculate(self,msg):
+        self._calculate_walls = True
 
     def _Process(self,msg):
 
+        # Format the data
         df = self._FormatForProcessing(msg)
-        points = self._Clean(df)
+        
+        # Clean the data and retreive it's points
+        df, points = self._Clean(df)
 
-        if (self.first_run):
+        # If calculating the walls (on first receive, or on request by operator)
+        if (self._calculate_walls):
+
+            # Set to false, only do so ONCE (unless further requests are made)
+            self._calculate_walls = False
+
+            # Determine walls and clean them
             lines = self.wall_algorithm.DetermineLines(points)
             lines_part2 = self.wall_algorithm.RemoveLines_Distance(lines)
             lines_part3 = self.wall_algorithm.JoinCorners(lines_part2)
             lines_part4 = self.wall_algorithm.ConnectListEdge(lines_part3)
             lines_final = self.wall_algorithm.RemoveLines_Distance(lines_part4)
-            out_msg = self._Format_Wall_Msg(lines_final)
-        else:
-            out_msg = self._FormatMsg(df,points,msg)
+            
+            # Format output message (Wall data)
+            out_msg = self._Format_Wall_Msg(lines_final,df['timestamp'[0]]) # All timestamps are the same
+            self._Publish(out_msg,False)
+        
+
+        # Format output message (No wall data)
+        out_msg = self._FormatMsg(df,points,msg)
 
         self._Publish(out_msg)
 
@@ -79,11 +97,22 @@ class Lidar_Processing(Node):
         # Add timestamp - not used, but important metadata for debugging
         df['timestamp'] = msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9
 
+
+        print('Success!')
+
         # Return the dataframe
         return df
 
-    def _Clean(self,df):
+    def _Clean(self,df:pd.DataFrame):
+        """
+        Method to clean the provided dataset
+        - Assumes 'ranges' is a present value
+        Arguments: pd.DataFrame || Must contain 'ranges' and 'bearing' values
+        - range can be nan
+        - each range must have bearing
 
+        Returns: (x,y) coordinate data for each range (and angle) provided
+        """
 
         # Identify mean and standard deviation, set all values above mean + 3std to nan 
         # (All values over 99.7% of the data spread, assumes normal distribution)
@@ -102,73 +131,57 @@ class Lidar_Processing(Node):
         _, points = self.wall_algorithm.Display(df)
 
         # Return the points
-        return points
+        return df,points
 
     
-    def _FormatMsg(self,msg):
-        header = msg.header
-        range = msg.ranges
-        angle_min = msg.angle_min
-        angle_increment  = msg.angle_increment
+    def _FormatMsg(self,df,msg):
+        """
+        Method for formatting the standard message
+        Imports modified ranges from df into msg
 
-        points = []
-        current_angle = angle_min
-        i = 0
-        group_x = []
-        group_y = []
+        Note: Assumes ranges in df are np.floats (containing np.nan)
+        """
+        # Import updated ranges into the message in the correct format
+        msg.ranges = df['ranges'].tolist()
 
-        for range_val in range:
+        # Return message
+        return msg
 
-            group_x.append(range_val * np.cos(current_angle))
-            group_y.append(range_val * np.sin(current_angle))
+    def _Format_Wall_Msg(self,lines:list,timestamp):
 
-            if True:#(i % 5 == 0):
-                points.append((np.mean(group_x),np.mean(group_y)))
-                group_x.clear()
-                group_y.clear()
-
-            current_angle+=angle_increment
-            i+=1
-        
-        new_msg = {}
-        new_msg['timestamp'] = msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9
-        new_msg['angle_min'] = angle_min
-        new_msg['angle_max'] = msg.angle_max
-        new_msg['angle_increment'] = angle_increment
-        new_msg['range_min'] = msg.range_min
-        new_msg['range_max'] = msg.range_max
-        new_msg['range'] = range
-        new_msg['points'] = points
-
-        return new_msg
-
-    def _Format_Wall_Msg(self,lines):
+        # Determine wall number
         n = 1
         txt = "Wall "
+
+        # Prepare walls message
         walls = []
+        
+        # Append timestamp (important for debugging)
+        walls.append(timestamp)
+
+        # Loop through all walls, append [start, end, name]
         for line in lines:
             start = line.start
             end = line.end
-            walls.append(start,end,txt+str(n))
+            walls.append([start,end,txt+str(n)])
 
+        # Convert to JSON string
         msg = json.dump(walls)
+
+        # Return message for publication
         return msg
 
     
-    def _Publish(self,msg):
+    def _Publish(self,msg,range_only:Bool = True):
 
-        new_msg = String()
-        new_msg.data = json.dumps(msg)
-
-
-        if self.first_run:
-            self.first_run = False
-        else:
-            pass
-
-        pass
+        if range_only: 
+            self.publisher_main.publish(msg)
+        else: 
+            self.publisher_wall_designation.publish(msg)
 
 
+# Main class for determining walls
+# Made as separate in case it's useful for other processes
 class DetermineWalls():
     
     def __init__(self,min_line_dist:float = 0.2,dist_max_corner_join:float = 0.2,max_connection_dist: float = 0.1):
@@ -443,5 +456,26 @@ class DetermineWalls():
         return hv.Scatter(points).opts(color=color), points
 
 
+def main(args=None):
+    rclpy.init(args=args)
+    
+    # Load node
+    node = Lidar_Processing()
+
+    # Spin node
+    try:
+        node.get_logger().info("SensorProcesssing-Lidar || Status: Active")
+        rclpy.spin(node)
+    except KeyboardInterrupt:
+        # On keyboard interrupt, shut down the system
+        pass
+    finally:
+        # Log deactivation of node
+        node.get_logger().info("SensorProcesssing-Lidar || Status: Inactive")
+
+        # Destroy node and shutdown
+        node.destroy_node()
+        rclpy.shutdown()
+
 if __name__ == '__main__':
-    pass
+    main()
