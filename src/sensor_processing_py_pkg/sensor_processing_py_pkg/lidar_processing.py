@@ -9,6 +9,7 @@ from sensor_msgs.msg import LaserScan
 import pandas as pd
 import holoviews as hv
 from enum import Enum
+hv.extension('bokeh')
 
 #%%
 
@@ -23,161 +24,6 @@ class Line:
     start = []
     end = []
     dir = Dir.NONE
-
-
-
-# Main Class
-class Lidar_Processing(Node):
-
-    def __init__(self):
-        super().__init__('lidar_processing')
-        self.wall_algorithm = DetermineWalls()
-
-        self._calculate_walls = True
-
-        self.subscriber = self.create_subscription(LaserScan,'/scan',self._Process,10)
-        self.subscriber = self.create_subscription(Bool,'/wall/recalculate',self._Recalculate,10) # Will need someone to determine room dimensions, if room dimensions change, then rescan for walls
-        self.publisher_wall_designation = self.create_publisher(String,'/wall/designation',10)
-        self.publisher_main = self.create_publisher(LaserScan,'/processed/scan',10)
-
-
-    def _Recalculate(self,msg):
-        self._calculate_walls = True
-
-    def _Process(self,msg):
-
-        # Format the data
-        df = self._FormatForProcessing(msg)
-        
-        # Clean the data and retreive it's points
-        df, points = self._Clean(df)
-
-        # If calculating the walls (on first receive, or on request by operator)
-        if (self._calculate_walls):
-
-            # Set to false, only do so ONCE (unless further requests are made)
-            self._calculate_walls = False
-
-            # Determine walls and clean them
-            lines = self.wall_algorithm.DetermineLines(points)
-            lines_part2 = self.wall_algorithm.RemoveLines_Distance(lines)
-            lines_part3 = self.wall_algorithm.JoinCorners(lines_part2)
-            lines_part4 = self.wall_algorithm.ConnectListEdge(lines_part3)
-            lines_final = self.wall_algorithm.RemoveLines_Distance(lines_part4)
-            
-            # Format output message (Wall data)
-            out_msg = self._Format_Wall_Msg(lines_final,df['timestamp'[0]]) # All timestamps are the same
-            self._Publish(out_msg,False)
-        
-
-        # Format output message (No wall data)
-        out_msg = self._FormatMsg(df,points,msg)
-
-        self._Publish(out_msg)
-
-
-    def _FormatForProcessing(self,msg):
-
-        # Prepare dataframe
-        df = pd.DataFrame()
-
-        # Extract range data from msg, and put into dataframe
-        # One range = one row in df
-        ranges = list(msg.ranges)
-        df['ranges'] = ranges
-
-        # Then calulate angle for each range
-        angle_min = msg.angle_min                            # Extract minimum angle
-        angle_increment = msg.angle_increment                # Extract angle increment
-        angles = []                                          # Define angles
-        for i in range(0,len(df['ranges'])):                 # Loop through all ranges
-            angles.append(angle_min + i * angle_increment)   # Add angle based on index
-        df['bearing'] = angles                               # Add angles to df as 'bearing'
-
-        # Add timestamp - not used, but important metadata for debugging
-        df['timestamp'] = msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9
-
-
-        print('Success!')
-
-        # Return the dataframe
-        return df
-
-    def _Clean(self,df:pd.DataFrame):
-        """
-        Method to clean the provided dataset
-        - Assumes 'ranges' is a present value
-        Arguments: pd.DataFrame || Must contain 'ranges' and 'bearing' values
-        - range can be nan
-        - each range must have bearing
-
-        Returns: (x,y) coordinate data for each range (and angle) provided
-        """
-
-        # Identify mean and standard deviation, set all values above mean + 3std to nan 
-        # (All values over 99.7% of the data spread, assumes normal distribution)
-        mean = np.mean(df['ranges'])
-        std = np.std(df['ranges'])
-        df[df['ranges'] > mean + (3*std)] = np.nan
-
-        # Identify mean and standard deviations, set threshold at mean + 3std, anything above that set to nan
-        # Same as previous section, except on a smaller 'local' scale, involving 5 units either side of the point
-        df['rolling_mean'] = df['ranges'].rolling(11,1,True).mean()
-        df['rolling_std'] = df['ranges'].rolling(11,1,True).std()
-        df['thd'] = df['rolling_mean'] + 3 * df['rolling_std']
-        df.loc[df['ranges'] > df['thd'],'ranges'] = np.nan
-        
-        # Call display and discard the graph, retain the points (x,y) positions
-        _, points = self.wall_algorithm.Display(df)
-
-        # Return the points
-        return df,points
-
-    
-    def _FormatMsg(self,df,msg):
-        """
-        Method for formatting the standard message
-        Imports modified ranges from df into msg
-
-        Note: Assumes ranges in df are np.floats (containing np.nan)
-        """
-        # Import updated ranges into the message in the correct format
-        msg.ranges = df['ranges'].tolist()
-
-        # Return message
-        return msg
-
-    def _Format_Wall_Msg(self,lines:list,timestamp):
-
-        # Determine wall number
-        n = 1
-        txt = "Wall "
-
-        # Prepare walls message
-        walls = []
-        
-        # Append timestamp (important for debugging)
-        walls.append(timestamp)
-
-        # Loop through all walls, append [start, end, name]
-        for line in lines:
-            start = line.start
-            end = line.end
-            walls.append([start,end,txt+str(n)])
-
-        # Convert to JSON string
-        msg = json.dump(walls)
-
-        # Return message for publication
-        return msg
-
-    
-    def _Publish(self,msg,range_only:Bool = True):
-
-        if range_only: 
-            self.publisher_main.publish(msg)
-        else: 
-            self.publisher_wall_designation.publish(msg)
 
 
 # Main class for determining walls
@@ -240,7 +86,8 @@ class DetermineWalls():
             if current_dir != line.dir:
                 lines.append(line)
                 line = Line()
-                line.start = list(point) # Maybe omit
+                line.start = list(point)
+                line.end = list(point)
                 line.dir = current_dir
 
             # Otherwise, it's part of the same line
@@ -423,7 +270,7 @@ class DetermineWalls():
         # Return replacement line
         return replacement
 
-    def Display(data,item = 'ranges',color='blue'):
+    def Display(self,df:pd.DataFrame,item = 'ranges',color='blue'):
         """
 
         Display function: Called by 'Lidar_Processing._Clean) to retrieve points
@@ -436,24 +283,171 @@ class DetermineWalls():
         i = 0
 
         # Loop through all items
-        for i in range(len(data[item])):
+        for i in range(len(df[item])):
 
             # If the item is nan, skip rest of the loop (ignore it)
-            if np.isnan(data[item][i]):
+            if np.isnan(df[item][i]):
                 continue
 
             # Determine x and y locations
             # NOTE: Restiction to 1dp is required, although data accuracy is lost - it allows for lines to be
             # more easily determined - Lidar data is noisy and dense, hence this 'smooths' it, allowing for 
             # easier wall identification
-            x = round(data[item][i] * np.cos(data['bearing'][i]),1)
-            y = round(data[item][i]  * np.sin(data['bearing'][i]),1)
+            x = round(df[item][i] * np.cos(df['bearing'][i]),1)
+            y = round(df[item][i]  * np.sin(df['bearing'][i]),1)
 
             # Save x,y coordinates
             points.append([x,y])
 
         # Return holoviews scatter graph and points
         return hv.Scatter(points).opts(color=color), points
+
+
+
+# Main Class
+class Lidar_Processing(Node):
+
+    def __init__(self):
+        super().__init__('lidar_processing')
+        self.wall_algorithm = DetermineWalls()
+
+        self._calculate_walls = True
+
+        self.subscriber = self.create_subscription(LaserScan,'/scan',self._Process,10)
+        self.subscriber = self.create_subscription(Bool,'/wall/recalculate',self._Recalculate,10) # Will need someone to determine room dimensions, if room dimensions change, then rescan for walls
+        self.publisher_wall_designation = self.create_publisher(String,'/wall/designation',10)
+        self.publisher_main = self.create_publisher(LaserScan,'/processed/scan',10)
+
+
+    def _Recalculate(self,msg):
+        self._calculate_walls = True
+
+    def _Process(self,msg):
+
+        # Format the data
+        df = self._FormatForProcessing(msg)
+        
+        # Clean the data and retreive it's points
+        df, points = self._Clean(df)
+
+        # If calculating the walls (on first receive, or on request by operator)
+        if (self._calculate_walls):
+
+            # Set to false, only do so ONCE (unless further requests are made)
+            self._calculate_walls = False
+
+            # Determine walls and clean them
+            lines = self.wall_algorithm.DetermineLines(points)
+            lines_part2 = self.wall_algorithm.RemoveLines_Distance(lines)
+            lines_part3 = self.wall_algorithm.JoinCorners(lines_part2)
+            lines_part4 = self.wall_algorithm.ConnectListEdge(lines_part3)
+            lines_final = self.wall_algorithm.RemoveLines_Distance(lines_part4)
+            
+            # Format output message (Wall data)
+            self.wall_msg = self._Format_Wall_Msg(lines_final,df['timestamp'][0]) # All timestamps are the same
+        
+
+        # Format output message (No wall data)
+        out_msg = self._FormatMsg(df,msg)
+
+
+        # Publish
+        self.publisher_main.publish(out_msg)
+        self.publisher_wall_designation.publish(self.wall_msg)
+
+
+    def _FormatForProcessing(self,msg):
+
+        # Prepare dataframe
+        df = pd.DataFrame()
+
+        # Extract range data from msg, and put into dataframe
+        # One range = one row in df
+        ranges = list(msg.ranges)
+        df['ranges'] = ranges
+
+        # Then calulate angle for each range
+        angle_min = msg.angle_min                            # Extract minimum angle
+        angle_increment = msg.angle_increment                # Extract angle increment
+        angles = []                                          # Define angles
+        for i in range(0,len(df['ranges'])):                 # Loop through all ranges
+            angles.append(angle_min + i * angle_increment)   # Add angle based on index
+        df['bearing'] = angles                               # Add angles to df as 'bearing'
+
+        # Add timestamp - not used, but important metadata for debugging
+        df['timestamp'] = msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9
+
+        # Return the dataframe
+        return df
+
+    def _Clean(self,df:pd.DataFrame):
+        """
+        Method to clean the provided dataset
+        - Assumes 'ranges' is a present value
+        Arguments: pd.DataFrame || Must contain 'ranges' and 'bearing' values
+        - range can be nan
+        - each range must have bearing
+
+        Returns: (x,y) coordinate data for each range (and angle) provided
+        """
+
+        # Identify mean and standard deviation, set all values above mean + 3std to nan 
+        # (All values over 99.7% of the data spread, assumes normal distribution)
+        mean = np.mean(df['ranges'])
+        std = np.std(df['ranges'])
+        df[df['ranges'] > mean + (3*std)] = np.nan
+
+        # Identify mean and standard deviations, set threshold at mean + 3std, anything above that set to nan
+        # Same as previous section, except on a smaller 'local' scale, involving 5 units either side of the point
+        df['rolling_mean'] = df['ranges'].rolling(11,1,True).mean()
+        df['rolling_std'] = df['ranges'].rolling(11,1,True).std()
+        df['thd'] = df['rolling_mean'] + 3 * df['rolling_std']
+        df.loc[df['ranges'] > df['thd'],'ranges'] = np.nan
+        
+        # Call display and discard the graph, retain the points (x,y) positions
+        _, points = self.wall_algorithm.Display(df)
+
+        # Return the points
+        return df,points
+
+    
+    def _FormatMsg(self,df,msg):
+        """
+        Method for formatting the standard message
+        Imports modified ranges from df into msg
+
+        Note: Assumes ranges in df are np.floats (containing np.nan)
+        """
+        # Import updated ranges into the message in the correct format
+        msg.ranges = df['ranges'].tolist()
+
+        # Return message
+        return msg
+
+    def _Format_Wall_Msg(self,lines:list,timestamp):
+
+        # Determine wall number
+        n = 1
+        txt = "Wall "
+
+        # Prepare walls message
+        walls = []
+        
+        # Append timestamp (important for debugging)
+        walls.append(timestamp)
+
+        # Loop through all walls, append [start, end, name]
+        for line in lines:
+            start = line.start
+            end = line.end
+            walls.append([start[0],start[1],end[0],end[1],txt+str(n),line.dir.value])
+
+        msg = String()
+        # Convert to JSON string
+        msg.data = json.dumps(walls,)
+
+        # Return message for publication
+        return msg
 
 
 def main(args=None):
@@ -479,3 +473,5 @@ def main(args=None):
 
 if __name__ == '__main__':
     main()
+
+# %%

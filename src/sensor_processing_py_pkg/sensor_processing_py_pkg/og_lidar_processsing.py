@@ -83,6 +83,7 @@ def DetermineLines(points):
     line = Line()
     lines = []
     current_dir = Dir.NONE
+    count = 1
 
     for point in points:
         #current_dir = Dir.NONE
@@ -105,20 +106,28 @@ def DetermineLines(points):
         # If the end is the same as the current point
         # update the line dir and end point
         if line.end == point:
+
             line.dir = current_dir
             line.end = list(point)
             continue
 
         # If the direction changes, it's a new line
         if current_dir != line.dir:
+            print(count)
+            if count == 11: 
+                print(line.start,line.end,line.dir)
+            
             lines.append(line)
             line = Line()
             line.start = list(point) # Maybe omit
+            line.end = list(point)
             line.dir = current_dir
 
         # Otherwise, it's part of the same line
         else:
             line.end = list(point)
+        
+        count+=1
         
     lines.append(line)
 
@@ -244,24 +253,63 @@ def ConnectLines(lineA, lineB):
 
 
 #%% Remove Lines of small distance
+lines = DetermineLines(points)
 lines_part2 = RemoveLines_Distance(lines)
 lines_part3 = JoinCorners(lines_part2)
 lines_part4 = ConnectListEdge(lines_part3)
 finale = RemoveLines_Distance(lines_part4)
-PlotLines(lines_part4)
 
-import json
-def _Format_Wall_Msg(self,lines):
-    n = 1
-    txt = "Wall "
-    walls = []
-    for line in lines:
-        start = line.start
-        end = line.end
-        walls.append(start,end,txt+str(n))
-
-    msg = json.dump(walls)
-    return msg
+# %%
+finale
 
 
+
+#%% Link together walls
+links = {}
+linked_walls = []
+
+
+for loop in range(0,len(finale)-1):
+    if finale[loop].dir == finale[loop+1].dir:
+        newline = Line()
+        newline.start = finale[loop].start
+        newline.end = finale[loop+1].end
+        newline.dir = finale[loop].dir
+        linked_walls.append(newline)
+        links[finale[loop+1]] = finale[loop]
+
+
+    elif not finale[loop] in links.keys():
+        linked_walls.append(finale[loop])
+
+linked_walls
+
+# %% Displaying the data
+new_data = []
+txt = "Wall"
+x = 1
+for line in linked_walls:
+    new_data.append([line.start[0],line.start[1],line.end[0],line.end[1],txt+str(x),line.dir.value])
+    x+=1
+
+
+overlay = hv.Overlay([
+    hv.Segments([[x0,y0,x1,y1]],
+        kdims=['x0','y0','x1','y1'],
+        label=name
+    ).opts(
+        color=hv.Cycle('Spectral'),
+        line_width=4
+    )
+    for x0,y0,x1,y1,name,_ in new_data
+]).opts(
+    tools=['hover'],
+    legend_position='right',
+    show_legend=True,
+    aspect='equal'
+)
+
+overlay
+# %%
+new_data
 # %%

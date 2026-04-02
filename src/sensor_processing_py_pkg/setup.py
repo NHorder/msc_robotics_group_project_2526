@@ -24,6 +24,7 @@ setup(
     },
     entry_points={
         'console_scripts': [
+            'lidar_process = sensor_processing_py_pkg.lidar_processsing:main',
         ],
     },
 )

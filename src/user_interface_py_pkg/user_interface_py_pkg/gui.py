@@ -471,23 +471,9 @@ if __name__ == "__main__":
     # Programmically serve the app
     pn.serve(app)
 
-
 # %%
-gui.helper_graphics['SystemHealth'].show()
-# %%
-lidar = gui.node_handler.subscriber_data['Lidar']
-lidar_raw = gui.node_handler.subscriber_data['unique']
-# %%
-lidar
-# %%
-lidar_raw.ranges
+gui.helper.graphics["Wall_Visual"].show()
 
 #%%
-lidar_raw
+gui.node_handler.subscriber_data['Wall_Visual']
 # %%
-lidar_raw.angle_min
-#lidar_raw.angle_max
-#lidar_raw.angle_increment
-
-#%%
-lidar
