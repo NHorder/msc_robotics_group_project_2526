@@ -17,7 +17,7 @@ function [J, LinJ] = Jacobian(T01, T12, T23, T34, T45, T06)
 %	- Determinant: The determinant of the Jacobian
 %
 % author: Sébastien Dubois, s.j.dubois.116@cranfield.ac.uk
-% date: Date update
+% date: 02/04/2026
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Calculate the missing Tranformation matrices from base to current link
