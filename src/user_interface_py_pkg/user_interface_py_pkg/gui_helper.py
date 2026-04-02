@@ -84,7 +84,7 @@ class GUI_Helper():
         pipe = Pipe(data=[])
         task = asyncio.create_task(self.node_handler.GetDataAsync('Wall_Visual',pipe))
         # Create Dynamic map
-        dmap = hv.DynamicMap(self._CreateWallGraphic_Callback,streams = [pipe])
+        dmap = hv.DynamicMap(self._CreateWallGraphic_Callback,streams = [pipe]).opts(responsive=True)
 
         wall_graphic = pnl.WidgetBox(
             pnp.Markdown("**Room Walls**",styles=self.styles['markdown_text_title']),

@@ -107,15 +107,6 @@ class GUI():
         self.helper_graphics = self.helper.CreateGraphics()
 
         self.lidar_scatter = self.helper_graphics['Lidar']
-
-        # # Create Lidar visual link
-        # lidar_pipe = Pipe(data = [])
-        # task = asyncio.create_task(self.node_handler.GetData('Lidar',lidar_pipe))
-        # lidar_dmap = hv.DynamicMap(hv.Scatter,streams=[lidar_pipe]).opts(responsive=True,color='black')
-        # robot_loc = hv.Scatter([(0,0)],label='Robot Centre').opts(color='blue',marker='star',size=10)
-        # self.lidar_scatter = pnl.WidgetBox(
-        #     pnp.Markdown("**2D LiDAR**",styles=self.styles['markdown_text_title']),
-        #     (lidar_dmap*robot_loc),sizing_mode='stretch_both')
         
         self.motion_plan = pn.Column(self.lidar_scatter,pnp.Markdown("Mobile Base: No Path Planned",styles=self.styles['markdown_text_title'],align='center'),sizing_mode='stretch_both')
 
@@ -301,7 +292,7 @@ class GUI():
         action_planner_name = pnp.Markdown("**Action Planner**",styles=self.styles['markdown_text_title'],align='center')
         action_name = pnw.TextInput(name="Action Name:",placeholder="Action X",align='center')
         
-        wall_select = pnw.Select(name="Select Wall to Paint",options = [1,2,3,4],align='center')
+        wall_select = self.helper_graphics["Wall_Selection"]
         action_location_string = pnp.Markdown("When to start action: ",styles={'font-size': '11pt'},align='center')
         action_location = pnw.RadioButtonGroup(options=["Now","Next","Later"],value="Later",button_type=self.styles['buttons'][0],button_style=self.styles['buttons'][1]) # Radio button: Now, Next, Later
         confirm_button = pnw.Button(name="Save Action",button_type="success",button_style=self.styles['buttons'][1],align='center')
@@ -333,7 +324,7 @@ class GUI():
         # Define the whole page, and place areas respectivly
         base = pnl.GridSpec(sizing_mode="stretch_both")
         base[0:,0:1] = action_area # Action creation info
-        base[0:,1:4] = self.motion_plan # Room Plan (With labeled walls)
+        base[0:,1:4] = self.helper_graphics["Wall_Visual"] # Room Plan (With labeled walls)
         
         # Save as actions page
         self.pages["Actions"] = base
