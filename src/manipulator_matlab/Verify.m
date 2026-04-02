@@ -13,7 +13,7 @@ function Verify(Path, T06, J, LinJ, print, robot)
 %   - robot: the robot model
 %
 % author: Sébastien Dubois, s.j.dubois.116@cranfield.ac.uk
-% date: 12/12/2025
+% date: 02/04/2025
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Calculate the transformation matrix with the angles found in the Path
