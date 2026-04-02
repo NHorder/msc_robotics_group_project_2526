@@ -108,14 +108,14 @@ class GUI_Helper():
 
         if test and data.size > 0:
             overlay = hv.Overlay([
-                hv.Segments([[x0,y0,x1,y1]],
-                    kdims=['x0','y0','x1','y1'],
+                hv.Segments([[x,y,x1,y1]],
+                    kdims=['x','y','x1','y1'],
                     label=name
                 ).opts(
                     color=hv.Cycle('Spectral'),
                     line_width=4
                 )
-                for x0,y0,x1,y1,name in data
+                for x,y,x1,y1,name in data
             ]).opts(
                 tools=['hover'],
                 legend_position='right',
@@ -123,7 +123,7 @@ class GUI_Helper():
                 aspect='equal'
             )
 
-            robot_loc = hv.Scatter([(0,0)],label='Robot Centre').opts(color='blue',marker='star',size=10)
+            robot_loc = hv.Scatter([(0,0)],kdims=['x','y'],label='Robot Centre').opts(color='blue',marker='star',size=10)
             
             return overlay * robot_loc
             
