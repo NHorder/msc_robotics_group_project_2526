@@ -12,7 +12,7 @@ function RotX = createRotX(a)
 %	- RotX: the transformation matrix corresponding to a rotation around the x axis
 %
 % author: Sébastien Dubois, s.j.dubois.116@cranfield.ac.uk
-% date: 12/12/2025
+% date: 02/04/2025
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Create the rotation part of the transformation matrix (3 x 3)
