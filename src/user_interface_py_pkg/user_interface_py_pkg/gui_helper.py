@@ -6,8 +6,10 @@ import holoviews as hv
 import panel as pn 
 import pandas as pd
 import threading
+import asyncio
 from action import Action
 from node_handler import NodeHandler
+from PIL import Image
 from holoviews.streams import Pipe
 from panel import pane as pnp
 from panel import layout as pnl
@@ -15,23 +17,30 @@ from panel import widgets as pnw
 pn.extension(notifications=True)
 pn.extension('terminal')
 hv.extension('bokeh')
-import asyncio
  
 
 class GUI_Helper():
     
-    def __init__(self,node_handler,styles):
+    def __init__(self,gui, node_handler, styles):
+        self.gui = gui
         self.node_handler = node_handler
         self.styles = styles
+
+
+    def StartTimers(self):
+        pn.state.add_periodic_callback(self._CreateCameraImageCallback,100)
+        pn.state.add_periodic_callback(self._SystemHealthCallback,500)
+        pn.state.add_periodic_callback(self._CreateWallSelectionCallback,500)
 
     def CreateGraphics(self):
         self.graphics = {}
         self.graphics["Lidar"] = self._CreateLidarGraph()
+        self.graphics["Camera"] = self._CreateCameraImage()
         self.graphics["SystemHealth"] = self._CreateSystemHealth()
-
-
         self.graphics["Wall_Visual"] = self._CreateWallGraphic()
         self.graphics["Wall_Selection"]= self._CreateWallSelection()
+        self.graphics["Emergency_Commands"] = self._CreateCommandsEm()
+        self.graphics["Commands"] = self._CreateCommands()
 
 
         return self.graphics
@@ -47,6 +56,19 @@ class GUI_Helper():
             (lidar_dmap*robot_loc),sizing_mode='stretch_both')
         
         return lidar_scatter
+    
+    def _CreateCameraImage(self):
+        self.camera_img = pnp.Image(sizing_mode='scale_both')
+
+        return pn.WidgetBox(pnp.Markdown("**RGB-D Camera**",styles=self.styles['markdown_text_title']),
+                            self.camera_img,
+                            sizing_mode='stretch_both')
+    
+    def _CreateCameraImageCallback(self):
+        data = self.node_handler.GetData('Camera')
+        if data is not None:
+            img = Image.fromarray(data)
+            self.camera_img.object = img
 
     def _CreateSystemHealth(self):
         self.system_health = pn.Column(
@@ -55,8 +77,6 @@ class GUI_Helper():
             sizing_mode='stretch_both',
             scroll=True
         )
-
-        pn.state.add_periodic_callback(self._SystemHealthCallback,500)
 
         return self.system_health
 
@@ -106,6 +126,8 @@ class GUI_Helper():
         except:
             pass
 
+        robot_loc = hv.Scatter([(0,0)],label='Robot Centre').opts(color='blue',marker='star',size=10)
+
         if test and data.size > 0:
             overlay = hv.Overlay([
                 hv.Segments([[x,y,x1,y1]],
@@ -122,18 +144,16 @@ class GUI_Helper():
                 show_legend=True,
                 aspect='equal'
             )
-
-            robot_loc = hv.Scatter([(0,0)],kdims=['x','y'],label='Robot Centre').opts(color='blue',marker='star',size=10)
             
             return overlay * robot_loc
             
-        else: return hv.Overlay([])
+        else: 
+            
+            return hv.Overlay([]) * robot_loc
 
         
     def _CreateWallSelection(self):
         self.wall_select = pnw.Select(name="Select Wall to Paint",options = [1,2,3,4],align='center')
-
-        pn.state.add_periodic_callback(self._CreateWallSelectionCallback,500)
 
         return self.wall_select
     
@@ -153,3 +173,108 @@ class GUI_Helper():
 
         # Update the graphic to display wall names
         self.wall_select.options = wall_options
+    
+
+    def _CreateCommandsEm(self):
+
+        self.command_action_play_em = pnw.ButtonIcon(icon='player-play',size=self.styles['emergency_command'])
+        self.command_action_stop_em = pnw.ButtonIcon(icon='player-stop',size=self.styles['emergency_command'])
+        self.command_action_skip_em =  pnw.ButtonIcon(icon='player-skip-forward',size=self.styles['emergency_command'])
+        self.command_action_stop_em.visible = False
+
+        self.command_action_play_em.on_click(lambda exec : self._CreateCommandsCallback(caller='Play'))
+        self.command_action_stop_em.on_click(lambda exec : self._CreateCommandsCallback(caller='Stop'))
+        self.command_action_skip_em.on_click(lambda exec : self._CreateCommandsCallback(caller='Skip'))
+
+        emergency_commands = pn.Column(
+            pnp.Markdown("**Commands**",styles=self.styles['markdown_text_title']),
+            pn.Row(
+                self.command_action_play_em,
+                self.command_action_stop_em,
+                self.command_action_skip_em,
+                align='center'
+            )
+        )
+
+        return emergency_commands
+
+    def _CreateCommands(self):
+        self.command_action_play = pnw.ButtonIcon(icon='player-play',size=self.styles['command'],align='center')
+        self.command_action_stop = pnw.ButtonIcon(icon='player-stop',size=self.styles['command'],align='center')
+        self.command_action_skip =  pnw.ButtonIcon(icon='player-skip-forward',size=self.styles['command'],align='center')
+        self.command_action_stop.visible = False
+
+        self.command_action_play.on_click(lambda exec : self._CreateCommandsCallback(caller='Play'))
+        self.command_action_stop.on_click(lambda exec : self._CreateCommandsCallback(caller='Stop'))
+        self.command_action_skip.on_click(lambda exec : self._CreateCommandsCallback(caller='Skip'))
+
+        commands = pn.Column(pn.Row(
+                self.command_action_play,
+                self.command_action_stop,
+                self.command_action_skip,
+                align='center',
+                sizing_mode='stretch_width'
+            ),
+            align='center',
+            sizing_mode = 'stretch_both'
+            )
+        
+
+        return commands
+
+    def _CreateCommandsCallback(self,caller):
+
+        if caller == 'Play':
+            # Hide play button, present the stop button
+            self.command_action_play_em.visible=False
+            self.command_action_stop_em.visible = True
+
+            self.command_action_play.visible = False
+            self.command_action_stop.visible = True
+
+            # Call GUI to start action
+            self.gui.StartAction()
+
+        elif caller == 'Stop':
+            # Hide stop button, present play button
+            self.command_action_play_em.visible=True
+            self.command_action_stop_em.visible = False
+
+            self.command_action_play.visible = True
+            self.command_action_stop.visible = False
+            
+            # Call GUI to pause the action
+            self.gui.PauseAction()
+
+        elif caller == 'Skip':
+            self.command_action_play_em.visible=True
+            self.command_action_stop_em.visible = False
+
+            self.command_action_play.visible = True
+            self.command_action_stop.visible = False
+            
+            # Call GUI to move onto the next action
+            self.gui.NextAction()
+
+        elif caller == 'terminate':
+            self.command_action_play_em.visible=True
+            self.command_action_stop_em.visible = False
+
+            self.command_action_play.visible = True
+            self.command_action_stop.visible = False
+            # Set current action to None, throw warning about termination
+            
+        elif caller == 'complete':
+            self.command_action_play_em.visible=True
+            self.command_action_stop_em.visible = False
+
+            self.command_action_play.visible = True
+            self.command_action_stop.visible = False
+            # Notify of completion, load next action
+            
+            # Call gui to start the next action
+            self.gui.NextAction()
+
+        else:
+            pass
+

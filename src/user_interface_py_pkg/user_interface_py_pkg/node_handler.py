@@ -1,14 +1,17 @@
 import rclpy
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
-from std_msgs.msg import String
 import asyncio
 import threading
 import json
 import numpy as np
+import cv2 as cv
+from PIL import Image as PIL_IMG
 from holoviews.streams import Pipe
+from std_msgs.msg import String
 from diagnostic_msgs.msg import DiagnosticArray
 from sensor_msgs.msg import LaserScan, Image
+from cv_bridge import CvBridge
 
 
 class NodeHandler(Node):
@@ -26,8 +29,13 @@ class NodeHandler(Node):
         self.subscribers['Wall_Visual'] = self.create_subscription(String,'/wall/designation',lambda msg: self._UpdateData(msg,'Wall_Visual'),10)
 
         self.subscriber_data["Lidar"] = []
+        self.subscriber_data['Camera'] = []
         self.subscriber_data['SysHP'] = {}
         self.subscriber_data['Wall_Visual'] = []
+
+        self.nodes = {}
+        self.nodes["Current_Action"] = self.create_publisher(String,'/gui/action',10)
+
 
     def Spin(self):
         # Spin self (as self is a node)
@@ -62,13 +70,25 @@ class NodeHandler(Node):
             # Throw warning
             pass
     
+
     def GetData(self,id:String):
         if id in self.subscribers.keys():
             return self.subscriber_data[id]
     
 
-    def Publish(self,id,msg):
-        pass
+    def Publish(self,id,data):
+
+        if id == "Current_Action":
+            msg = String()
+            
+            if data == None or data.wall == None:
+                msg.data = "None"
+            else:
+                msg.data = data.wall
+
+            self.nodes["Current_Action"].publish(msg)
+        
+        
 
 class Decoder():
 
@@ -78,6 +98,9 @@ class Decoder():
 
             case 'Lidar':
                 return self._Decode_Scan(msg)
+            
+            case 'Camera':
+                return self._Decode_Image(msg)
             
             case 'SysHP':
                 return self._Decode_DiagnosticArray(msg)
@@ -151,4 +174,7 @@ class Decoder():
                 
             return np.array(joined_lines)
 
+    def _Decode_Image(self,msg):
+        frame = CvBridge().imgmsg_to_cv2(msg)
+        return frame
 

@@ -15,6 +15,7 @@ import holoviews as hv
 import panel as pn 
 import pandas as pd
 import threading
+from threading import Timer
 from action import Action
 from node_handler import NodeHandler
 from gui_helper import GUI_Helper
@@ -40,7 +41,10 @@ class GUI():
         self.styles['markdown_text_title'] = {'font-size': '12pt'}
         self.styles['markdown_text_reg'] = {'font-size': '10pt'}
         self.styles['emergency_command'] = "4em"
+        self.styles['command'] = '2em'
 
+        # Set intial - prevents automatic firing of binded functions
+        self.inital = True
 
         # Establish link to node handler
         self.node_handler = NodeHandler()
@@ -49,23 +53,18 @@ class GUI():
         self.daemon_thread = threading.Thread(target=self.node_handler.Spin,daemon=True)
         self.daemon_thread.start()
 
-        self.helper = GUI_Helper(self.node_handler,self.styles)
-
-        
-
-        # Set intial - prevents automatic firing of binded functions
-        self.inital = True
+        self.helper = GUI_Helper(self,self.node_handler,self.styles)
 
         # Define pages
         self.pages = {}
 
         # Intialise action information
-        self.active_action = 0
+        self.active_action = None
         self.planned_actions = []
         self.create_actions_widgets = []
         self.action_list  = 0
 
-        
+        self.timer = asyncio.create_task(self._PublishingLoop(0.5, self._PublishActiveAction))
 
     def RunApp(self):
         """
@@ -100,6 +99,8 @@ class GUI():
             
         )
 
+        pn.state.onload(self.helper.StartTimers)
+
         return app
     
     def _CreateGraphics(self):
@@ -111,7 +112,7 @@ class GUI():
         self.motion_plan = pn.Column(self.lidar_scatter,pnp.Markdown("Mobile Base: No Path Planned",styles=self.styles['markdown_text_title'],align='center'),sizing_mode='stretch_both')
 
         self.battery_progress = pn.indicators.Progress(name='Battery Level',active=True,sizing_mode='stretch_width',bar_color='success',align='center')
-        self.battery_progress.value = 87
+        self.battery_progress.value = -1
         self.paint_indicator = pn.indicators.LinearGauge(name='Paint Levels',value=2.6,format='{value:.1f} kg',bounds=(0.7,25.4),colors=['red','gold','green'],horizontal=True,sizing_mode='stretch_width',align='center')
         self.progress_progress = pnp.Markdown("No Task in Progress",styles=self.styles['markdown_text_title'])
         self.progress_progress.value = 12
@@ -150,20 +151,7 @@ class GUI():
             scroll=True
         )
 
-        self.emergency_commands = pn.Column(
-            pnp.Markdown("**Commands**",styles=self.styles['markdown_text_title']),
-            pn.Row(
-                pnw.ButtonIcon(icon='player-play',size=self.styles['emergency_command']),
-                pnw.ButtonIcon(icon='player-stop',size=self.styles['emergency_command']),
-                pnw.ButtonIcon(icon='player-pause',size=self.styles['emergency_command']),
-                pnw.ButtonIcon(icon='player-skip-forward',size=self.styles['emergency_command']),
-                align='center'
-            )
-        )
-
-        img = pnp.Image("./images/snapshot.jpg",sizing_mode='stretch_both')
-        self.camera_raw_panel = pn.WidgetBox(pnp.Markdown("**RGB-D Camera**",styles=self.styles['markdown_text_title']),img,sizing_mode='stretch_both')
-        self.manipulator_arm_path = pn.WidgetBox(img,pnp.Markdown("No Manipulator Path Planned",styles=self.styles['markdown_text_title'],align='center'),sizing_mode='stretch_both')
+        self.emergency_commands = self.helper_graphics["Emergency_Commands"]
 
         self.action_home = pn.WidgetBox(self.progress_progress)
 
@@ -176,13 +164,13 @@ class GUI():
         base[0:2,0:2] = self.critical_info # Essentials: battery, progress, paint levels, system health
         base[2:5,0:2] = self.system_health # Robot Information, world information
 
-        base[0:3,2:8] = self.motion_plan # 2D Localisation map, highlighted entities and wall, mobile base motion plan
+        base[0:3,2:8] = self.helper_graphics['Wall_Visual'] # 2D Localisation map, highlighted entities and wall, mobile base motion plan
 
         base[3:5,2:5] =  self.action_home # Current progress, current instruction, entities nearby, next insntruction, pause, skip and stop buttons
 
-        base[3:5,5:8] =  self.manipulator_arm_path # Manipualtor arm motion plan
+        base[3:5,5:8] =  self.helper_graphics['Camera'] # Manipualtor arm motion plan
 
-        base[0:2,8:12] =  self.camera_raw_panel # RGB Camera
+        base[0:2,8:12] =  self.helper_graphics['Camera'] # RGB Camera
         base[2:4,8:12] =  self.lidar_scatter
 
         base[4:5,8:12] =  self.emergency_commands # Emergency commands and other command commands
@@ -260,8 +248,8 @@ class GUI():
             pnp.Markdown("Joint 5 || Min: -40 deg, Max: +40 deg",styles=self.styles['markdown_text_reg']),
             scroll = True
         ) 
-        manipulator_arm[0:4,2:6] = self.manipulator_arm_path # Manipulator Plan
-        manipulator_arm[0:4,6:10] = self.camera_raw_panel # Camera
+        manipulator_arm[0:4,2:6] = self.helper_graphics['Camera'] # Manipulator Plan
+        manipulator_arm[0:4,6:10] = self.helper_graphics['Camera'] # Camera
         manipulator_arm[4:6,2:6] = self.action_home # Instruction information
         manipulator_arm[4:6,6:8] = self.emergency_commands # Pause and stop 
         manipulator_arm[4:6,8:10] = pnp.Image("./images/manipulator_schematic.jpg") # 3D Model of entire robot
@@ -375,14 +363,12 @@ class GUI():
                 self.action_home.pop()
                 self.progress_progress = pn.indicators.Progress(name='Task Progress',active=True,sizing_mode='stretch_width',bar_color='success',align='center')
                 self.progress_progress = 15
-                # If the action is not active, present a play button to start, else a pause button
-                if (self.active_action == 0): button = pnw.ButtonIcon(icon="player-play",size="2em",align="center")
-                else: button = pnw.ButtonIcon(icon="player-pause",size="2em",align="center")
 
                 new_item = pn.WidgetBox(
                         pnp.Markdown(f"Current Action: {action.name} || Wall: {action.wall}",styles={'font-size': '11pt'},align="center"),
-                        button,
+                        self.helper_graphics["Commands"],
                         pnl.Divider(),
+                        align='center',
                         sizing_mode='stretch_width'
                     )
                 # Otherwise display current action information
@@ -439,6 +425,47 @@ class GUI():
             pn.state.notifications.warning("Warning: Page not found",duration = 4000)
 
 
+    def StartAction(self):
+        if not self.inital:
+            # Assume first action is always the current action
+
+            # Check if there are any planned actions, and there is no active action
+            if len(self.planned_actions) > 0 and self.active_action == None:
+                self.active_action = self.planned_actions[0]
+                
+            else:
+                pass
+
+    def PauseAction(self):
+        if not self.inital:
+            # If there is an active action, set it to None
+            # Stoppin the sequence
+            if self.active_action != None:
+                self.active_action = None
+            else:
+                pass
+
+    def NextAction(self):
+        if not self.inital:
+            if len(self.planned_actions) > 1:
+                self.planned_actions.pop(0)
+
+                # Require user confirmation to begin after skipping an action
+                if self.active_action != None:
+                    self.active_action = None
+            
+            else:
+                pass
+    
+    async def _PublishActiveAction(self):
+        self.node_handler.Publish("Current_Action",self.active_action)
+        
+
+    async def _PublishingLoop(self,interval, function):
+        while True:
+            await function()
+            await asyncio.sleep(interval)
+
 def main(args=None):
     
     # Create GUI class
@@ -462,9 +489,21 @@ if __name__ == "__main__":
     # Programmically serve the app
     pn.serve(app)
 
-# %%
-gui.helper.graphics["Wall_Visual"].show()
 
 #%%
-gui.node_handler.subscriber_data['Wall_Visual']
+from PIL import Image
+
+img_dat = gui.node_handler.subscriber_data['Camera']
+img = Image.fromarray(img_dat)
+# %%
+import panel as pn
+
+pn.extension()
+
+pane = pn.pane.Image()
+pane.object = img
+
+pn.Column(pane).show()
+# %%
+gui.helper_graphics['Camera'].show()
 # %%
