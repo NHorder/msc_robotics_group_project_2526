@@ -488,22 +488,3 @@ if __name__ == "__main__":
 
     # Programmically serve the app
     pn.serve(app)
-
-
-#%%
-from PIL import Image
-
-img_dat = gui.node_handler.subscriber_data['Camera']
-img = Image.fromarray(img_dat)
-# %%
-import panel as pn
-
-pn.extension()
-
-pane = pn.pane.Image()
-pane.object = img
-
-pn.Column(pane).show()
-# %%
-gui.helper_graphics['Camera'].show()
-# %%
