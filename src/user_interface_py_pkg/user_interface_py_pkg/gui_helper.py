@@ -41,8 +41,8 @@ class GUI_Helper():
 
     def StartTimers(self):
         pn.state.add_periodic_callback(self._CreateCameraImageCallback,100)
-        pn.state.add_periodic_callback(self._SystemHealthCallback,500)
-        pn.state.add_periodic_callback(self._CreateWallSelectionCallback,500)
+        pn.state.add_periodic_callback(self._SystemHealthCallback,250)
+        pn.state.add_periodic_callback(self._CreateWallSelectionCallback,250)
 
     def CreateGraphics(self):
         self.graphics = {}
@@ -94,27 +94,34 @@ class GUI_Helper():
             scroll=True
         )
 
+        systems_health = ['GUI','Mobile_Base','Manipulator_Arm','Visual_Sensor_Systems','DataProcessing','Path_Planning','Path_Following','Simulation']
+        #cnt = -1
+        for system in systems_health:
+            self.system_health.append(pnp.Markdown(f"{system}: Checking"))
+            #cnt+=1
+
+            # if cnt % 2 == 0:
+            #     self.system_health.append(pnl.Divider())
+
         return self.system_health
 
     def _SystemHealthCallback(self):
-        data = self.node_handler.GetData('SysHP')
+        data = self.node_handler.GetData("SysHP")
+        keys = list(data.keys())
 
-        if len(self.system_health) < 2:
-            print("???")
-            for key in data.keys():
-                self.system_health.append(
-                    pnp.Markdown(f"{key} : {data[key]}",self.styles['markdown_text_reg'])
-                )
-        else:
-            i = 2
-            for key in data.keys():
-                self.system_health[i](
-                    pnp.Markdown(f"{key} : {data[key]}",self.styles['markdown_text_reg'])
-                )
-                i+=1
-                
-        self.system_health.sizing_mode = 'stretch_both'
-        self.system_health.scroll = True
+        if data != {} and len(keys) > 1:
+            key_idx = 0
+            for idx in range(2,len(self.system_health)):
+                if (self.system_health[idx] == pnl.Divider()):
+                    continue
+                else:
+                    self.system_health[idx].object = f"{keys[key_idx]} : {data[keys[key_idx]]}"
+                    key_idx += 1
+
+
+            
+
+
 
     def _CreateWallGraphic(self):
         pipe = Pipe(data=[])

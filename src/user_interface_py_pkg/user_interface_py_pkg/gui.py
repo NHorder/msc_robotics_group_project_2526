@@ -109,6 +109,7 @@ class GUI():
 
         self.battery_progress = pn.indicators.Progress(name='Battery Level',active=True,sizing_mode='stretch_width',bar_color='success',align='center')
         self.battery_progress.value = -1
+
         self.paint_indicator = pn.indicators.LinearGauge(name='Paint Levels',value=2.6,format='{value:.1f} kg',bounds=(0.7,25.4),colors=['red','gold','green'],horizontal=True,sizing_mode='stretch_width',align='center')
 
         self.critical_info = pn.Column(
@@ -122,33 +123,6 @@ class GUI():
             height_policy="max"
         )
 
-        self.system_health = pn.Column(
-            pnp.Markdown("**System Health**",styles=self.styles['markdown_text_title'],align='center'),
-            pnl.Divider(),
-            pnp.Markdown("Safety Systems : Online",styles=self.styles['markdown_text_reg']),
-            pnp.Markdown("Safety Contingencies : On-Standby",styles=self.styles['markdown_text_reg']),
-
-            pnl.Divider(),
-
-            pnp.Markdown("Lidar  : Online",styles=self.styles['markdown_text_reg']),
-            pnp.Markdown("Camera : Online",styles=self.styles['markdown_text_reg']),
-
-            pnl.Divider(),
-
-            pnp.Markdown("Manipulator : Connected",styles=self.styles['markdown_text_reg']),
-            pnp.Markdown("Mobile Base : Connected",styles=self.styles['markdown_text_reg']),
-
-            pnl.Divider(),
-
-            pnp.Markdown("Localisation: Offline",styles=self.styles['markdown_text_reg']),
-            pnp.Markdown("Mobile Base Motion Planning : Offline ",styles=self.styles['markdown_text_reg']),
-            pnp.Markdown("Manipulator Motion Planning : Offline ",styles=self.styles['markdown_text_reg']),
-            sizing_mode='stretch_both',
-            scroll=True
-        )
-
-        self.emergency_commands = self.helper_graphics["Emergency_Commands"]
-
         self.action_home = self.helper_graphics["Actions_Mini"]
         self.action_home.insert(0,self.helper_graphics["Action_Progress"])
         self.action_home.insert(1,pnl.Divider())
@@ -160,7 +134,7 @@ class GUI():
         base = pnl.GridSpec(sizing_mode="stretch_both",styles = self.styles['areas'])
 
         base[0:2,0:2] = self.critical_info # Essentials: battery, progress, paint levels, system health
-        base[2:5,0:2] = self.system_health # Robot Information, world information
+        base[2:5,0:2] = self.helper_graphics["SystemHealth"] # Robot Information, world information
 
         base[0:3,2:8] = self.helper_graphics['Wall_Visual'] # 2D Localisation map, highlighted entities and wall, mobile base motion plan
 
@@ -169,9 +143,10 @@ class GUI():
         base[3:5,5:8] =  self.helper_graphics['Camera'] # Manipualtor arm motion plan
 
         base[0:2,8:12] =  self.helper_graphics['Camera'] # RGB Camera
+
         base[2:4,8:12] =  self.helper_graphics['Lidar']
 
-        base[4:5,8:12] =  self.emergency_commands # Emergency commands and other command commands
+        base[4:5,8:12] =  self.helper_graphics["Emergency_Commands"] # Emergency commands and other command commands
         
         # Save result to pages dictionary
         self.pages["Home"] = base
@@ -217,7 +192,7 @@ class GUI():
         robot_base[0:4,2:6] = self.motion_plan # Motion Plan
         robot_base[0:4,6:10] = self.helper_graphics['Lidar'] # LiDAR
         robot_base[4:6,2:6] = self.action_home #Instruction information
-        robot_base[4:6,6:8] = self.emergency_commands # Pause and stop 
+        robot_base[4:6,6:8] = self.helper_graphics["Emergency_Commands"] # Pause and stop 
         robot_base[4:6,8:10] = pnp.Image("./images/mobile_base.jpg") # 3D Model of entire robot
 
 
@@ -249,7 +224,7 @@ class GUI():
         manipulator_arm[0:4,2:6] = self.helper_graphics['Camera'] # Manipulator Plan
         manipulator_arm[0:4,6:10] = self.helper_graphics['Camera'] # Camera
         manipulator_arm[4:6,2:6] = self.action_home # Instruction information
-        manipulator_arm[4:6,6:8] = self.emergency_commands # Pause and stop 
+        manipulator_arm[4:6,6:8] = self.helper_graphics["Emergency_Commands"] # Pause and stop 
         manipulator_arm[4:6,8:10] = pnp.Image("./images/manipulator_schematic.jpg") # 3D Model of entire robot
 
         # Bind the radio button to change subpage motion, using all values, this means that the visual will change based on radio button choice
@@ -301,7 +276,7 @@ class GUI():
         radio_button = pnw.RadioButtonGroup(options=["Home","Actions","Motion","Robot Information","Logging","Legal Information"],orientation = 'vertical',button_type=self.styles['buttons'][0],button_style=self.styles['buttons'][1],sizing_mode="stretch_both")
 
         # Setup the column layout
-        column = pn.Column(self.critical_info,pnl.Divider(),self.emergency_commands,pnl.Divider(),radio_button,sizing_mode="stretch_both")
+        column = pn.Column(self.critical_info,pnl.Divider(),self.helper_graphics["Emergency_Commands"],pnl.Divider(),radio_button,sizing_mode="stretch_both")
         return column
     
     def _ChangePage(self,value):
@@ -344,6 +319,3 @@ if __name__ == "__main__":
 
     # Programmically serve the app
     pn.serve(app)
-
-# %%
-gui.node_handler.subscriber_data['SysHP']
