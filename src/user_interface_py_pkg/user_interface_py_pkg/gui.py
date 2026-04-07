@@ -16,7 +16,7 @@ import panel as pn
 import pandas as pd
 import threading
 from threading import Timer
-from action import Action
+from action_handler import Action_Handler
 from node_handler import NodeHandler
 from gui_helper import GUI_Helper
 from holoviews.streams import Pipe
@@ -32,7 +32,10 @@ GUI Class handles the creation and utilisation of the user interface
 """
 class GUI():
     
-    def __init__(self):
+    def __init__(self,dev_mode=False):
+
+        dev_mode = dev_mode
+
         """Initialisation function. Prepares Interface for screen creation"""
         # Set button style - will affect all buttons in the UI
         self.styles = {}
@@ -47,22 +50,17 @@ class GUI():
         self.inital = True
 
         # Establish link to node handler
-        self.node_handler = NodeHandler()
+        self.node_handler = NodeHandler(dev_mode)
 
         # Spin node_handler on a separate thread (means main thread is not blocked)
         self.daemon_thread = threading.Thread(target=self.node_handler.Spin,daemon=True)
         self.daemon_thread.start()
 
-        self.helper = GUI_Helper(self,self.node_handler,self.styles)
+        self.action_handler = Action_Handler(self.styles,dev_mode)
+        self.helper = GUI_Helper(self,self.node_handler,self.action_handler,self.styles,dev_mode)
 
         # Define pages
         self.pages = {}
-
-        # Intialise action information
-        self.active_action = None
-        self.planned_actions = []
-        self.create_actions_widgets = []
-        self.action_list  = 0
 
         self.timer = asyncio.create_task(self._PublishingLoop(0.5, self._PublishActiveAction))
 
@@ -106,21 +104,19 @@ class GUI():
     def _CreateGraphics(self):
 
         self.helper_graphics = self.helper.CreateGraphics()
-
-        self.lidar_scatter = self.helper_graphics['Lidar']
         
-        self.motion_plan = pn.Column(self.lidar_scatter,pnp.Markdown("Mobile Base: No Path Planned",styles=self.styles['markdown_text_title'],align='center'),sizing_mode='stretch_both')
+        self.motion_plan = pn.Column(self.helper_graphics['Lidar'],pnp.Markdown("Mobile Base: No Path Planned",styles=self.styles['markdown_text_title'],align='center'),sizing_mode='stretch_both')
 
         self.battery_progress = pn.indicators.Progress(name='Battery Level',active=True,sizing_mode='stretch_width',bar_color='success',align='center')
         self.battery_progress.value = -1
         self.paint_indicator = pn.indicators.LinearGauge(name='Paint Levels',value=2.6,format='{value:.1f} kg',bounds=(0.7,25.4),colors=['red','gold','green'],horizontal=True,sizing_mode='stretch_width',align='center')
-        self.progress_progress = pnp.Markdown("No Task in Progress",styles=self.styles['markdown_text_title'])
-        self.progress_progress.value = 12
 
         self.critical_info = pn.Column(
             pnp.Markdown("**Critical Information**",styles=self.styles['markdown_text_title'],align='center'),
             pn.Row(pnp.Markdown("Battery",styles=self.styles['markdown_text_title'],align='center'),self.battery_progress,align='center'),
-            pn.Row(pnp.Markdown("Action Progress",styles=self.styles['markdown_text_title'],align='center'),self.progress_progress,align='center'),
+            pnl.Divider(),
+            self.helper_graphics["Action_Progress"],
+            pnl.Divider(),
             self.paint_indicator,
             sizing_mode='stretch_both',
             height_policy="max"
@@ -153,7 +149,9 @@ class GUI():
 
         self.emergency_commands = self.helper_graphics["Emergency_Commands"]
 
-        self.action_home = pn.WidgetBox(self.progress_progress)
+        self.action_home = self.helper_graphics["Actions_Mini"]
+        self.action_home.insert(0,self.helper_graphics["Action_Progress"])
+        self.action_home.insert(1,pnl.Divider())
 
     def _CreateHomeScreen(self):
         """Method to create the home screen layout"""
@@ -166,12 +164,12 @@ class GUI():
 
         base[0:3,2:8] = self.helper_graphics['Wall_Visual'] # 2D Localisation map, highlighted entities and wall, mobile base motion plan
 
-        base[3:5,2:5] =  self.action_home # Current progress, current instruction, entities nearby, next insntruction, pause, skip and stop buttons
+        base[3:5,2:5] =  self.helper_graphics["Actions_Mini"] # Current progress, current instruction, entities nearby, next insntruction, pause, skip and stop buttons
 
         base[3:5,5:8] =  self.helper_graphics['Camera'] # Manipualtor arm motion plan
 
         base[0:2,8:12] =  self.helper_graphics['Camera'] # RGB Camera
-        base[2:4,8:12] =  self.lidar_scatter
+        base[2:4,8:12] =  self.helper_graphics['Lidar']
 
         base[4:5,8:12] =  self.emergency_commands # Emergency commands and other command commands
         
@@ -217,7 +215,7 @@ class GUI():
             scroll = True
         )
         robot_base[0:4,2:6] = self.motion_plan # Motion Plan
-        robot_base[0:4,6:10] = self.lidar_scatter # LiDAR
+        robot_base[0:4,6:10] = self.helper_graphics['Lidar'] # LiDAR
         robot_base[4:6,2:6] = self.action_home #Instruction information
         robot_base[4:6,6:8] = self.emergency_commands # Pause and stop 
         robot_base[4:6,8:10] = pnp.Image("./images/mobile_base.jpg") # 3D Model of entire robot
@@ -270,126 +268,15 @@ class GUI():
     def _CreateActionScreen(self):
         """Method to create the action screen"""
 
-        # CreateActionList is a function that handles the list of actions and current action
-        self.action_list = pn.Column(align='center',sizing_mode= 'stretch_both',scroll = True,height_policy="max")
-        self.action_list.append(pnp.Markdown("No Actions Planned",styles={'font-size': '11pt'},align='center'))
-
-        self.action_home.append(pnp.Markdown("No Actions Planned",styles={'font-size': '11pt'},align='center'))
-
-        # Code to generate the modify or create action area
-        action_planner_name = pnp.Markdown("**Action Planner**",styles=self.styles['markdown_text_title'],align='center')
-        action_name = pnw.TextInput(name="Action Name:",placeholder="Action X",align='center')
-        
-        wall_select = self.helper_graphics["Wall_Selection"]
-        action_location_string = pnp.Markdown("When to start action: ",styles={'font-size': '11pt'},align='center')
-        action_location = pnw.RadioButtonGroup(options=["Now","Next","Later"],value="Later",button_type=self.styles['buttons'][0],button_style=self.styles['buttons'][1]) # Radio button: Now, Next, Later
-        confirm_button = pnw.Button(name="Save Action",button_type="success",button_style=self.styles['buttons'][1],align='center')
-        
-        # Save the inputs as a class variable, enables access from other functions (when the 'Save Action' button is pressed)
-        self.create_actions_widgets = [action_name,wall_select,action_location]
-
-        # Conglomerate all the widgets into a dedicated area
-        creation_area= pn.WidgetBox(
-            action_planner_name,
-            action_name,
-            wall_select,
-            pn.Row(action_location_string,action_location,align='center'),
-            confirm_button,
-            pn.bind(self._CreateActionSq,button=confirm_button),
-            sizing_mode='stretch_width',
-            align= 'center'
-        )
-
-        # Define action area - this involves the house plan and existing action list
-        action_area = pn.WidgetBox(
-            self.action_list,
-            pnl.Divider(),
-            creation_area,
-            sizing_mode='stretch_width',
-            align = 'center'
-        )
-
         # Define the whole page, and place areas respectivly
         base = pnl.GridSpec(sizing_mode="stretch_both")
-        base[0:,0:1] = action_area # Action creation info
+        base[0:,0:1] = self.helper_graphics['Actions'] # Action creation info
         base[0:,1:4] = self.helper_graphics["Wall_Visual"] # Room Plan (With labeled walls)
         
         # Save as actions page
         self.pages["Actions"] = base
-    
-    def _CreateActionSq(self,button):
-        """Method to create actions"""
 
-        # If not intialising
-        # REMINDER: All trigger functions called once during preparation to ensure connection
-        # In this case, we do NOT want a false action, hence skip if intialising
-        if (self.inital == False):
 
-            # Create action class from inputs
-            action = Action(self.create_actions_widgets[0].value,self.create_actions_widgets[1].value)
-            
-            # If no name provided, use a default name of "Action X", where X is how many actions already exist
-            if (action.name == ""): action.name = "Action "+str(len(self.planned_actions))
-
-            # If the user wants to intrupt the current action
-            if self.create_actions_widgets[2].value == 'Now':
-                # Set it to be the next item
-                action.SetListLoc(1)
-                # Notify operator of override
-
-                # End current action
-
-            # If the operator wants it to be the next action
-            elif self.create_actions_widgets[2].value == 'Next':
-                # Set action as next to be done
-                action.SetListLoc(1)
-
-            # IF the operator wants it to be later, add to end of the list
-            # Might change, to allow operator to select where to place the action
-            else:
-                action.SetListLoc(len(self.planned_actions))
-
-            # If there is more than 2 actions, then use insert if Now or Next
-            # Cause you can't do it otherwise
-            if len(self.planned_actions) >= 2 and action.GetLoc() == 1:
-                self.planned_actions.insert(1,action)
-            else:
-                # Add to end of planned action list
-                self.planned_actions.append(action)
-   
-            # Call CreateActionList to update the visual list of actions
-            if len(self.planned_actions) == 1:
-                self.action_list.pop()
-                self.action_home.pop()
-                self.progress_progress = pn.indicators.Progress(name='Task Progress',active=True,sizing_mode='stretch_width',bar_color='success',align='center')
-                self.progress_progress = 15
-
-                new_item = pn.WidgetBox(
-                        pnp.Markdown(f"Current Action: {action.name} || Wall: {action.wall}",styles={'font-size': '11pt'},align="center"),
-                        self.helper_graphics["Commands"],
-                        pnl.Divider(),
-                        align='center',
-                        sizing_mode='stretch_width'
-                    )
-                # Otherwise display current action information
-                self.action_list.append(new_item)
-                self.action_home.append(new_item)
-
-            else:
-                item = pn.WidgetBox(pn.Row(
-                        pnp.Markdown(f"{action.name} || Wall: {action.wall}",styles={'font-size': '11pt'},align="center"),
-                        pnw.ButtonIcon(icon='edit',size="2em",align="center"),
-                        pnw.ButtonIcon(icon='trash',size="2em",align="center"),
-                        sizing_mode='stretch_width'
-                    ))
-                self.action_list.insert(action.loc,item)
-                
-                if action.loc == 1 and len(self.action_home) == 2:
-                    self.action_home.append(pnp.Markdown(f"Next Action: {action.name} || Wall: {action.wall}",styles={'font-size': '11pt'},align="center"),)
-                elif action.loc == 1:
-                    self.action_home.pop()
-                    self.action_home.append(pnp.Markdown(f"Next Action: {action.name} || Wall: {action.wall}",styles={'font-size': '11pt'},align="center"),)
-         
 
     def _CreateRobotInfoScreen(self):
         pass
@@ -425,40 +312,9 @@ class GUI():
             pn.state.notifications.warning("Warning: Page not found",duration = 4000)
 
 
-    def StartAction(self):
-        if not self.inital:
-            # Assume first action is always the current action
-
-            # Check if there are any planned actions, and there is no active action
-            if len(self.planned_actions) > 0 and self.active_action == None:
-                self.active_action = self.planned_actions[0]
-                
-            else:
-                pass
-
-    def PauseAction(self):
-        if not self.inital:
-            # If there is an active action, set it to None
-            # Stoppin the sequence
-            if self.active_action != None:
-                self.active_action = None
-            else:
-                pass
-
-    def NextAction(self):
-        if not self.inital:
-            if len(self.planned_actions) > 1:
-                self.planned_actions.pop(0)
-
-                # Require user confirmation to begin after skipping an action
-                if self.active_action != None:
-                    self.active_action = None
-            
-            else:
-                pass
     
     async def _PublishActiveAction(self):
-        self.node_handler.Publish("Current_Action",self.active_action)
+        self.node_handler.Publish("Current_Action",self.action_handler.active_action)
         
 
     async def _PublishingLoop(self,interval, function):
@@ -488,3 +344,6 @@ if __name__ == "__main__":
 
     # Programmically serve the app
     pn.serve(app)
+
+# %%
+gui.node_handler.subscriber_data['SysHP']

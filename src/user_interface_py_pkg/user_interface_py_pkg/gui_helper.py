@@ -7,7 +7,6 @@ import panel as pn
 import pandas as pd
 import threading
 import asyncio
-from action import Action
 from node_handler import NodeHandler
 from PIL import Image
 from holoviews.streams import Pipe
@@ -21,10 +20,23 @@ hv.extension('bokeh')
 
 class GUI_Helper():
     
-    def __init__(self,gui, node_handler, styles):
+    def __init__(self,gui, node_handler,action_handler, styles=None,dev_mode=False):
         self.gui = gui
         self.node_handler = node_handler
-        self.styles = styles
+        self.action_handler = action_handler
+        self.dev_mode = dev_mode
+        
+        if (styles == None):
+            self.styles = {}
+            self.styles['buttons'] = ['primary','outline']
+            self.styles['areas'] = {"border": "2px solid lightgray"}
+            self.styles['markdown_text_title'] = {'font-size': '12pt'}
+            self.styles['markdown_text_reg'] = {'font-size': '10pt'}
+            self.styles['emergency_command'] = "4em"
+            self.styles['command'] = '2em'
+        else:
+            self.styles = styles
+
 
 
     def StartTimers(self):
@@ -42,6 +54,10 @@ class GUI_Helper():
         self.graphics["Emergency_Commands"] = self._CreateCommandsEm()
         self.graphics["Commands"] = self._CreateCommands()
 
+        actions = self.action_handler.CreateGraphics(self)
+        self.graphics["Actions"] = actions[0]
+        self.graphics["Actions_Mini"] = actions[1]
+        self.graphics["Action_Progress"] = actions[2]
 
         return self.graphics
 
@@ -66,7 +82,7 @@ class GUI_Helper():
     
     def _CreateCameraImageCallback(self):
         data = self.node_handler.GetData('Camera')
-        if data is not None:
+        if data is not None and data != []:
             img = Image.fromarray(data)
             self.camera_img.object = img
 
@@ -224,7 +240,7 @@ class GUI_Helper():
 
     def _CreateCommandsCallback(self,caller):
 
-        if caller == 'Play':
+        if caller == 'Play' and len(self.action_handler.planned_actions) > 0:
             # Hide play button, present the stop button
             self.command_action_play_em.visible=False
             self.command_action_stop_em.visible = True
@@ -233,7 +249,7 @@ class GUI_Helper():
             self.command_action_stop.visible = True
 
             # Call GUI to start action
-            self.gui.StartAction()
+            self.action_handler.PlayAction()
 
         elif caller == 'Stop':
             # Hide stop button, present play button
@@ -244,9 +260,9 @@ class GUI_Helper():
             self.command_action_stop.visible = False
             
             # Call GUI to pause the action
-            self.gui.PauseAction()
+            self.action_handler.PauseAction()
 
-        elif caller == 'Skip':
+        elif caller == 'Skip' and len(self.action_handler.planned_actions) > 0:
             self.command_action_play_em.visible=True
             self.command_action_stop_em.visible = False
 
@@ -254,7 +270,7 @@ class GUI_Helper():
             self.command_action_stop.visible = False
             
             # Call GUI to move onto the next action
-            self.gui.NextAction()
+            self.action_handler.SkipAction()
 
         elif caller == 'terminate':
             self.command_action_play_em.visible=True
@@ -273,7 +289,7 @@ class GUI_Helper():
             # Notify of completion, load next action
             
             # Call gui to start the next action
-            self.gui.NextAction()
+            self.gui.SkipAction()
 
         else:
             pass

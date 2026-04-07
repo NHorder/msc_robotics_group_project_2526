@@ -16,10 +16,11 @@ from cv_bridge import CvBridge
 
 class NodeHandler(Node):
     
-    def __init__(self):
+    def __init__(self,dev_mode=False):
 
         super().__init__('gui_node_handler')
         self.decoder = Decoder()
+        self.dev_mode = dev_mode
 
         self.subscribers = {}
         self.subscriber_data = {}
