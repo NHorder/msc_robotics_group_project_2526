@@ -1,19 +1,31 @@
-
+################################
+# action_handler.py
+# Part of the user_interface_py_pkg
+#
+# Author: Nathan Horder (nathan.horder.700@cranfield.ac.uk)
+# Part of Cranfield University MSC Robotics Group Project 2025-2026
+################################
 #%%
 import panel as pn
 import panel.widgets as pnw
 from panel import pane as pnp
 from panel import layout as pnl
 
-
+"""
+Action
+Class to contain 'action' related data
+"""
 class Action():
 
     def __init__(self,name:str,wall:str):
         self.name = name
         self.wall = wall
     
-
-class Action_Handler():
+"""
+ActionHandler
+Class to handle wanted user action (I.e paint wallA, then wallB, etc)
+"""
+class ActionHandler():
 
     def __init__(self,styles=None,dev_mode=False):
 
@@ -43,8 +55,19 @@ class Action_Handler():
 
         self.initialising = True
     
-    def CreateGraphics(self,helper_graphics):
-        self.helper_graphics = helper_graphics.graphics
+    def CreateGraphics(self,ui_helper):
+        """
+        CreateGraphics (Public)
+        Method to generate graphics for action control
+
+        Arguments
+            - GUI_Helper : ui_helper || Link to GUI_Helper to retrieve specific graphics 
+
+        Returns:
+            - tuple : (pn.WidgetBox: action_area, pn.Column: self.reduced_graphics_list, pn.Column: self.progress) || Returns 3 visuals, action creation area, a minimal action presention and progress for current action
+
+        """
+        self.helper_graphics = ui_helper.graphics
 
         self.action_name = pnw.TextInput(name="Action Name:",placeholder="Action X",align='center')
         self.wall_select = self.helper_graphics["Wall_Selection"]
@@ -92,6 +115,15 @@ class Action_Handler():
         return action_area, self.reduced_graphics_list, self.progress
 
     def CreateAction(self, button):
+        """
+        CreateAction (Public)
+        Method to create an action
+
+        Arguments
+            - <unknown>: button: Ignored input, required by Panel for button link
+
+        Returns: N/A
+        """
         if self.initialising:
             return
         
@@ -139,7 +171,7 @@ class Action_Handler():
 
             self.planned_actions.append(action)
             self.graphics_list.append(visual)
-            self.UpdateFirstItem()
+            self._UpdateFirstItem()
 
         elif (idx == 'Now'):
             # IF now, insert at first location
@@ -148,8 +180,8 @@ class Action_Handler():
             self.graphics_list.insert(0,visual)
 
             # Update first graphic
-            self.UpdateFirstItem()
-            self.UpdateMovedItem()
+            self._UpdateFirstItem()
+            self._UpdateMovedItem()
         
         elif (idx == 'Next'):
             self.planned_actions.insert(1,action)
@@ -167,14 +199,22 @@ class Action_Handler():
             self.graphics_list.insert(int(idx),visual)
         
 
-        self.UpdateOptions()
-        self.UpdateMinimalGraphicsList()
+        self._UpdateOptions()
+        self._UpdateMinimalGraphicsList()
 
         # Shite - needs to know where it is at all times
         edit_button.on_click(lambda exec : self.EditAction(action))
         delete_button.on_click(lambda exec : self.DeleteAction(action))
 
-    def UpdateFirstItem(self):
+    def _UpdateFirstItem(self):
+        """
+        _UpdateFirstItem (Private)
+        Method to update the visual for the first action in the planned_action list
+
+        Arguments: N/A
+
+        Returns: N/A
+        """
 
         if (len(self.planned_actions) > 0):
             # Acquire first action
@@ -192,7 +232,15 @@ class Action_Handler():
             # Overwrite the first graphic
             self.graphics_list[0] = first_item
 
-    def UpdateMovedItem(self):
+    def _UpdateMovedItem(self):
+        """
+        _UpdateMovedItem (Private)
+        Method to update the visual for a moved item
+
+        Arguments: N/A
+
+        Returns: N/A
+        """
         action = self.planned_actions[1]
 
         # Creation of visual
@@ -211,7 +259,15 @@ class Action_Handler():
 
         self.graphics_list[1] = visual
 
-    def UpdateOptions(self):
+    def _UpdateOptions(self):
+        """
+        _UpdateOptions (Private)
+        Method to update options for placement of next action
+
+        Arguments: N/A
+
+        Returns: N/A
+        """
         # Do loop to update action_location
         opts = []
         for idx in range(len(self.planned_actions)):
@@ -226,7 +282,15 @@ class Action_Handler():
         else: opts.append('Later')
         self.action_location.options = opts
     
-    def UpdateMinimalGraphicsList(self):
+    def _UpdateMinimalGraphicsList(self):
+        """
+        _UpdateMinimalGraphicsList (Private)
+        Method for dynamically updating the minimal display of planned actions
+
+        Arguments: N/A
+
+        Returns: N/A
+        """
         self.reduced_graphics_list.clear()
 
         data = self.graphics_list[:2]
@@ -248,6 +312,16 @@ class Action_Handler():
 
 
     def EditAction(self,action):
+        """
+        EditAction (Public)
+        Method for preparing actions to be updated
+
+        NOTE: Removes action from list, updates creation area with values
+
+        Arguments: N/A
+
+        Returns: N/A
+        """
         if self.initialising:
             return
         
@@ -262,6 +336,15 @@ class Action_Handler():
         self.action_name.value = action.name
 
     def DeleteAction(self,item):
+        """
+        DeleteAction (Public)
+        Method to delete actions
+
+        Arguments
+            - int : item || Index of item to remove
+
+        Returns: N/A
+        """
         if self.initialising:
             return
         
@@ -275,6 +358,14 @@ class Action_Handler():
             self.graphics_list.append(pnp.Markdown("No Actions Planned",styles={'font-size': '11pt'},align='center'))
 
     def ConcludeAction(self):
+        """
+        ConcludeAction (Public)
+        Method to end the current action
+
+        Arguments: N/A
+
+        Returns: N/A
+        """
         # Delete action from list
         self.DeleteAction(0)
 
@@ -287,6 +378,14 @@ class Action_Handler():
 
 
     def PlayAction(self):
+        """
+        PlayAction (Public)
+        Method to set begin execution of current action
+
+        Arguments: N/A
+
+        Returns: N/A
+        """
         if not self.initialising:
             # Assume first action is always the current action
 
@@ -300,6 +399,18 @@ class Action_Handler():
                 pass
 
     def PauseAction(self):
+        """
+        PauseAction (Public)
+        Method to pause the current action
+        NOTE: Sets active action to None
+
+        DEV NOTE: Potential issue for restarting tasks, as prior information is not handled - progress tracker is maintained, but only locally
+
+        Arguments: N/A
+
+        Returns: N/A
+
+        """
         if not self.initialising:
             # If there is an active action, set it to None
             # Stopping the sequence
@@ -310,10 +421,31 @@ class Action_Handler():
                 pass
 
     def SkipAction(self):
+        """
+        SkipAction
+        Method to conclude current action and prepare for next action
+
+        Arguments: N/A
+
+        Returns: N/A
+
+        """
         self.active_action = None
         self.ConcludeAction()
 
 
-    def RetrieveActionProgress(self):
+    def _RetrieveActionProgress(self):
+        """
+        _RetrieveActionProgress
+        Method to dynamically update progress visual
+
+        Arguments: N/A
+
+        Returns: N/A
+
+        NOTE: Development in Progress
+        """
         pass
 
+
+# %%

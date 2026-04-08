@@ -2,24 +2,21 @@
 # gui.py
 # Part of the user_interface_py_pkg
 #
+# Author: Nathan Horder (nathan.horder.700@cranfield.ac.uk)
 # Part of Cranfield University MSC Robotics Group Project 2025-2026
 ################################
 
 #%%
 # Imports!
 import rclpy
-import numpy as np
 import asyncio
-import logging
 import holoviews as hv
 import panel as pn 
 import pandas as pd
 import threading
-from threading import Timer
-from action_handler import Action_Handler
+from action_handler import ActionHandler
 from node_handler import NodeHandler
-from gui_helper import GUI_Helper
-from holoviews.streams import Pipe
+from gui_helper import GUIHelper
 from panel import pane as pnp
 from panel import layout as pnl
 from panel import widgets as pnw
@@ -28,7 +25,12 @@ pn.extension('terminal')
 hv.extension('bokeh')
 
 """
-GUI Class handles the creation and utilisation of the user interface
+# GUI
+# Main class of the user_interface_py_pkg, handles the display of the user interface
+# Main function: RunApp - starting point for creation
+    Arguments: N/A
+    Returns: 
+        Servable application dashboard - can be made visible programically or via command line
 """
 class GUI():
     
@@ -56,8 +58,8 @@ class GUI():
         self.daemon_thread = threading.Thread(target=self.node_handler.Spin,daemon=True)
         self.daemon_thread.start()
 
-        self.action_handler = Action_Handler(self.styles,dev_mode)
-        self.helper = GUI_Helper(self,self.node_handler,self.action_handler,self.styles,dev_mode)
+        self.action_handler = ActionHandler(self.styles,dev_mode)
+        self.helper = GUIHelper(self,self.node_handler,self.action_handler,self.styles,dev_mode)
 
         # Define pages
         self.pages = {}
@@ -66,18 +68,22 @@ class GUI():
 
     def RunApp(self):
         """
-        Main method called to create and deploy the user interface
+        RunApp (Public)
+        Starting point of the GUI class, prepares the user interface for presentation
 
-        Returns: Servable application
+        Arguments: N/A
+
+        Returns:
+            - pn.template.VanillaTemplate: app
         """
         # Createa all the screens
         self._CreateGraphics()
 
-        self._CreateHomeScreen()
-        self._CreateMotionScreen()
-        self._CreateActionScreen()
-        self._CreateLoggingScreen()
-        side_bar = self._CreateSideBar()
+        self._OrganiseHomeScreen()
+        self._OrganiseMotionScreen()
+        self._OrganiseActionScreen()
+        self._OrganiseLoggingScreen()
+        side_bar = self._OrganiseSideBar()
 
         # Bind the function "_ChangePage" to the radio button group in the sidebar
         # Enabled operators to change main page content
@@ -102,6 +108,15 @@ class GUI():
         return app
     
     def _CreateGraphics(self):
+        """
+        _CreateGraphics (Private)
+        Create static graphics and call helper to generate dynamic graphics
+
+        Arguments N/A
+
+        Returns: N/A
+        - Enables self.helper_graphics to be availble: Dict, contains all dynamic graphics
+        """
 
         self.helper_graphics = self.helper.CreateGraphics()
         
@@ -127,8 +142,16 @@ class GUI():
         self.action_home.insert(0,self.helper_graphics["Action_Progress"])
         self.action_home.insert(1,pnl.Divider())
 
-    def _CreateHomeScreen(self):
-        """Method to create the home screen layout"""
+    def _OrganiseHomeScreen(self):
+        """
+        _OrganiseHomeScreen (Private)
+        Organises the home screen layout
+
+        Arguments: N/A
+
+        Returns: N/A
+        Adds home page to self.pages
+        """
 
         # Turns the page into a fixed grid system
         base = pnl.GridSpec(sizing_mode="stretch_both",styles = self.styles['areas'])
@@ -151,8 +174,16 @@ class GUI():
         # Save result to pages dictionary
         self.pages["Home"] = base
 
-    def _CreateMotionScreen(self):
-        """Method to create the robot motion screen"""
+    def _OrganiseMotionScreen(self):
+        """
+        _OrganiseMotionScreen (Private)
+        Organise the motion screen - handles inforamtion for mobile base and manipulator arms
+
+        Arguments: N/A 
+
+        Returns: N/A
+        Adds motion page to self.pages
+        """
 
         # Radio button enabled user to select between Mobile Base and Manipulator Arm
         radio = pnw.RadioButtonGroup(options=["Mobile Base","Manipulator Arm"],sizing_mode="stretch_width",button_type=self.styles['buttons'][0],button_style=self.styles['buttons'][1])
@@ -234,14 +265,28 @@ class GUI():
         self.pages["Motion"] = pn.Column(radio,content)
 
     def _ChangeSubPageMotion(self,value,robot_base,manipulator_arm):
-        """Method to handle sub-page change for the Robot Motion page"""
+        """
+        _ChangeSubPageMotion (Private)
+        Button triggered function, changes all visuals for the motion page, flipping between robot base and manipulator ar
+
+        Arguments: N/A
+
+        Returns: N/A
+        """
 
         # This is a trigger function, meaning it must return a Panel panel, hence it returns either the robot_base panel or the manipulator panel
         if value == "Mobile Base": return robot_base
         else: return manipulator_arm
  
-    def _CreateActionScreen(self):
-        """Method to create the action screen"""
+    def _OrganiseActionScreen(self):
+        """
+        _OrganiseActionScreen (Private)
+        Organises the action screen : Allows users to select walls and create actions
+        
+        Arguments: N/A
+
+        Returns: N/A
+        """
 
         # Define the whole page, and place areas respectivly
         base = pnl.GridSpec(sizing_mode="stretch_both")
@@ -253,10 +298,29 @@ class GUI():
 
 
 
-    def _CreateRobotInfoScreen(self):
+    def _OrganiseRobotInfoScreen(self):
+        """
+        _OrganiseRobotInfoScreen
+        Method to organise robot information
+
+        Arguments: N/A
+
+        Returns: N/A
+
+        NOTE: Incomplete
+        """
         pass
 
-    def _CreateLoggingScreen(self):
+    def _OrganiseLoggingScreen(self):
+        """
+        _OrganiseLoggingScreen
+        Method to organise the logging screen
+
+        Arguments: N/A
+
+        Returns: N/A
+        Saves page to self.pages
+        """
 
         logging_info = pn.Column(pnp.Markdown("Critical Logging",styles=self.styles['markdown_text_title'],align='center'),pnw.Terminal("V.I.S.N.A.T Terminal",sizing_mode = 'stretch_both'))
         logging_critical = pn.Column(pnp.Markdown("All Logging",styles=self.styles['markdown_text_title'],align='center'),pnw.Terminal("V.I.S.N.A.T Critical Terminal", sizing_mode = 'stretch_both'))
@@ -266,8 +330,16 @@ class GUI():
         self.pages["Logging"] = logging_base
 
 
-    def _CreateSideBar(self):
-        """Method to create the sidebar of the application"""
+    def _OrganiseSideBar(self):
+        """
+        _OrganiseSideBar
+        Method to create the sidebar of the application, part of template
+
+        Arguments: N/A
+
+        Returns: pn.Column || Sidebar column containing all neccessary widgets
+
+        """
 
         # Display the essential system information - including emergency stop and pause
 
@@ -280,24 +352,62 @@ class GUI():
         return column
     
     def _ChangePage(self,value):
-        """Method to change the main page content"""
+        """
+        _ChangePage
+        Button triggered method that changes the visible page, called from buttons in the sidebar
+
+        Arguments: str || value || Page to swap to
+
+        Returns: N/A
+        """
         if (value in self.pages.keys()): return self.pages[value]
         else:
             # Throw warning if page is not created 
             pn.state.notifications.warning("Warning: Page not found",duration = 4000)
 
-
-    
     async def _PublishActiveAction(self):
+        """
+        _PublishActiveAction
+        Method to notify node_handler to publish action_handler's current active action
+
+        Called by _PublishingLoop every <timeperiod>
+
+        Arguments: N/A
+
+        Returns: N/A
+
+        """
         self.node_handler.Publish("Current_Action",self.action_handler.active_action)
         
 
     async def _PublishingLoop(self,interval, function):
+        """
+        _PublishingLoop
+        Method to create a asyncio loop to call function
+        Requires to be called on a thread
+
+        Arguments
+            - float : interval || How often to restart the loop
+            - func : function || Function to call on loop
+
+        Returns: N/A
+
+        """
         while True:
             await function()
             await asyncio.sleep(interval)
 
+
 def main(args=None):
+    """
+        main
+        Starting plasce to create and present user interface
+
+        Arguments: Cmd args, these are ignored
+
+        Returns: N/A
+
+        """
     
     # Create GUI class
     gui = GUI()

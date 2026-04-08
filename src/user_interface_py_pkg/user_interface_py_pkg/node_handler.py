@@ -1,19 +1,27 @@
+################################
+# node_handler.py
+# Part of the user_interface_py_pkg
+#
+# Author: Nathan Horder (nathan.horder.700@cranfield.ac.uk)
+# Part of Cranfield University MSC Robotics Group Project 2025-2026
+################################
+
 import rclpy
-from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
 import asyncio
-import threading
 import json
 import numpy as np
 import cv2 as cv
-from PIL import Image as PIL_IMG
 from holoviews.streams import Pipe
 from std_msgs.msg import String
 from diagnostic_msgs.msg import DiagnosticArray
 from sensor_msgs.msg import LaserScan, Image
 from cv_bridge import CvBridge
 
-
+"""
+NodeHandler
+Class to handle connection between the user interface and ROS2 nodes
+"""
 class NodeHandler(Node):
     
     def __init__(self,dev_mode=False):
@@ -39,6 +47,15 @@ class NodeHandler(Node):
 
 
     def Spin(self):
+        """
+        Spin (Public)
+        Method to spin self, enabling running of subscriber and publisher nodes
+        Executed on a separate thread - will block main thread if called from main thread
+
+        Arguments: N/A
+
+        Returns: N/A
+        """
         # Spin self (as self is a node)
         try:
             # Keep the node running and processing callbacks
@@ -52,17 +69,36 @@ class NodeHandler(Node):
             rclpy.shutdown()
 
 
-    def _UpdateData(self,msg,id):
+    def _UpdateData(self,msg,id:str):
+        """
+        _UpdateData (Private)
+        Callback method for subscribers, updates local data store
 
+        Arguments
+            - <variable_type>: msg || ROS2 inbound message
+            - str : id || Which type of messsage is being sent (I/e Lidar, Camera, SysHP, Wall_Visual, etc)
+
+        Returns: N/A
+        """
         if (id in self.subscribers.keys()):
-            self.subscriber_data[id] = self.decoder.Decode_Msg(msg,id)
+            self.subscriber_data[id] = self.decoder.DecodeMsg(msg,id)
 
             if (id == 'Lidar'):
                 self.subscriber_data['unique'] = msg
 
 
     async def GetDataAsync(self,id:String, gui_pipe: Pipe):
+        """
+        GetDataAsync (Public)
+        Aync method for retrieving data from subscriber
+        Used for HoloViews graphics, alternative is GetData
 
+        Arguments
+            - str : id || The subscriber to retrieve data from
+            - Pipe : gui_pipe || Related GUI pipe to send the data through
+
+        Returns: N/A
+        """
         if id in self.subscribers.keys():
             while True:
                 await asyncio.sleep(1)
@@ -73,11 +109,32 @@ class NodeHandler(Node):
     
 
     def GetData(self,id:String):
+        """
+        GetData (Public)
+        Method for retrieving data from a subscriber
+        Method for general data access, alternative is GetDataAsync for HoloViews specific graphics
+
+        Arguments
+            - str : id || Subscriber to access data from
+
+        Returns:
+            - <variable_type>  || Subscriber data
+        """
         if id in self.subscribers.keys():
             return self.subscriber_data[id]
     
 
     def Publish(self,id,data):
+        """
+        Publish (Public)
+        Method to publish results to a specific subscriber
+
+        Arguments
+            - str : id || The publisher to publish the message
+            - <variable_type>: data || The message to be published
+
+        Returns: N/A
+        """
 
         if id == "Current_Action":
             msg = String()
@@ -90,29 +147,59 @@ class NodeHandler(Node):
             self.nodes["Current_Action"].publish(msg)
         
         
+"""
+Decoder
+Class to decode ROS2 messages into usable formats
 
+Main function: Decode_Msg
+    - Argument: <variable_type> : msg || ROS2 inbound message
+    - Argument: str : id || Which type of messsage is being sent (I/e Lidar, Camera, SysHP, Wall_Visual, etc)
+    - Return: <variable_type> || Decoded message
+"""
 class Decoder():
 
-    def Decode_Msg(self,msg,id):
+    def DecodeMsg(self,msg,id:str):
+        """
+        DecodeMsg (Public)
+        Main method for Decoder class, handles processing / direction of processing provided message
+
+        Arguments
+            - <variable_type>: msg || ROS2 inbound message
+            - str : id || Which type of messsage is being sent (I/e Lidar, Camera, SysHP, Wall_Visual, etc)
+
+        Returns:
+            - <variable_type>  || Decoded message
+        """
 
         match id:
 
             case 'Lidar':
-                return self._Decode_Scan(msg)
+                return self._DecodeScan(msg)
             
             case 'Camera':
-                return self._Decode_Image(msg)
+                return self._DecodeImage(msg)
             
             case 'SysHP':
-                return self._Decode_DiagnosticArray(msg)
+                return self._DecodeDiagnosticArray(msg)
             
             case 'Wall_Visual':
-                return self._Decode_JSON(msg,True)
+                return self._DecodeJSON(msg,True)
             
             case _:
                 return msg
 
-    def _Decode_Scan(self,msg):
+    def _DecodeScan(self,msg:LaserScan):
+        """
+        _DecodeScane (Private)
+        Method to decode LaserScan ROS2 message
+
+        Arguments
+            - LaserScan: msg || ROS2 inbound message
+
+        Returns:
+            - list : points || List of (x,y) coordinates for each range
+
+        """
         header = msg.header
         range = msg.ranges
         angle_min = msg.angle_min
@@ -142,7 +229,18 @@ class Decoder():
         
         return points
 
-    def _Decode_DiagnosticArray(self,msg):
+    def _DecodeDiagnosticArray(self,msg:DiagnosticArray):
+        """
+        _DecodeDiagnosticArray (Private)
+        Method to decode DiagnosticArray ROS2 messages
+
+        Arguments
+            - DiagnosticArray: msg || Inbound ROS2 message
+
+        Returns:
+            - dict : return_dict || Dictionary containing array information
+
+        """
 
         return_dict = {}
 
@@ -151,7 +249,19 @@ class Decoder():
         
         return return_dict
 
-    def _Decode_JSON(self,msg,IsWallVisual=False):
+    def _DecodeJSON(self,msg:String,IsWallVisual=False):
+        """
+        _DecodeJSON (Private)
+        Method to decode String (/ JSON) ROS2 messages
+
+        Arguments
+            - String : msg || Inbound ROS2 message
+            - bool : IsWallVisual || Factor to change decoding based on publisher - Default is False
+
+        Returns:
+            - dict || Decoded message, often presented as a dictionary - may be a list instead 
+            - (isWallVisual = True) np.array || Array of wall data
+        """
 
         if not IsWallVisual: return json.loads(msg.data)
         else:
@@ -175,7 +285,18 @@ class Decoder():
                 
             return np.array(joined_lines)
 
-    def _Decode_Image(self,msg):
+    def _DecodeImage(self,msg:Image):
+        """
+        _DecodeImage (Private)
+        Method to decode Image ROS2 messages
+
+        Arguments
+            - Image : msg || Inbound ROS2 message
+
+        Returns:
+            - cv2 img : frame || Image in format useable by OpenCV
+
+        """
         frame = CvBridge().imgmsg_to_cv2(msg)
         return frame
 

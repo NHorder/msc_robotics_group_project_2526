@@ -1,4 +1,10 @@
-
+################################
+# lidar_proccessing.py
+# Part of the sensor_processing_py_pkg
+#
+# Author: Nathan Horder (nathan.horder.700@cranfield.ac.uk)
+# Part of Cranfield University MSC Robotics Group Project 2025-2026
+################################
 #%% Imports
 import rclpy
 from rclpy.node import Node
@@ -13,21 +19,30 @@ hv.extension('bokeh')
 
 #%%
 
-## Helper Classes
+"""
+Dir
+Enum Class, custom type for direction marking
+"""
 class Dir(Enum):
     NONE = 1
     DELTA_X = 2
     DELTA_Y = 3
     DELTA_BOTH = 4
 
+"""
+Line
+Class to hold line data
+"""
 class Line:
     start = []
     end = []
     dir = Dir.NONE
 
 
-# Main class for determining walls
-# Made as separate in case it's useful for other processes
+"""
+DetermineWalls
+Class to determine walls from raw 2D LiDAR data
+"""
 class DetermineWalls():
     
     def __init__(self,min_line_dist:float = 0.2,dist_max_corner_join:float = 0.2,max_connection_dist: float = 0.1):
@@ -303,9 +318,12 @@ class DetermineWalls():
         return hv.Scatter(points).opts(color=color), points
 
 
-
+"""
+LidarProcessing
+Class to process raw 2D LiDAR data
+"""
 # Main Class
-class Lidar_Processing(Node):
+class LidarProcessing(Node):
 
     def __init__(self):
         super().__init__('lidar_processing')
@@ -320,10 +338,28 @@ class Lidar_Processing(Node):
 
 
     def _Recalculate(self,msg):
+        """
+        _Recalculate (Private)
+        Method to recalculate walls
+
+        Arguments: 
+            - Bool : msg || ROS2 inbound message
+
+        Returns: N/A
+        """
         self._calculate_walls = True
 
-    def _Process(self,msg):
+    def _Process(self,msg:LaserScan):
+        """
+        _Process (Private)
+        Method to process an inbound message from ROS2
 
+        Arguments: 
+            - LaserScan: msg || Inbound ROS2 message containing 2D LiDAR data
+
+        Returns: N/A
+        - Publishes result
+        """
         # Format the data
         df = self._FormatForProcessing(msg)
         
@@ -344,7 +380,7 @@ class Lidar_Processing(Node):
             lines_final = self.wall_algorithm.RemoveLines_Distance(lines_part4)
             
             # Format output message (Wall data)
-            self.wall_msg = self._Format_Wall_Msg(lines_final,df['timestamp'][0]) # All timestamps are the same
+            self.wall_msg = self._FormatWallMsg(lines_final,df['timestamp'][0]) # All timestamps are the same
         
 
         # Format output message (No wall data)
@@ -357,7 +393,16 @@ class Lidar_Processing(Node):
 
 
     def _FormatForProcessing(self,msg):
+        """
+        _FormatForProcessing (Private)
+        Method to format ROS2 message for processing
 
+        Arguments: 
+            - LaserScan : msg || Inbound ROS2 message
+
+        Returns: 
+            - pd.DataFrame : df || Dataframe containing ROS2 message information
+        """
         # Prepare dataframe
         df = pd.DataFrame()
 
@@ -382,13 +427,16 @@ class Lidar_Processing(Node):
 
     def _Clean(self,df:pd.DataFrame):
         """
+        _Clean (Private)
         Method to clean the provided dataset
-        - Assumes 'ranges' is a present value
-        Arguments: pd.DataFrame || Must contain 'ranges' and 'bearing' values
-        - range can be nan
-        - each range must have bearing
 
-        Returns: (x,y) coordinate data for each range (and angle) provided
+        DEV NOTE: Assumes 'ranges' is a present value
+
+        Arguments: 
+            - pd.DataFrame : pd || DataFrame containing formatted ROS2 LaserScan message
+
+        Returns: 
+            - tuple : (pd.DataFrame:df, list: points) || Returns a modified argument DataFrame and a list of (x,y) coordinate points each range (and bearing) correspond to
         """
 
         # Identify mean and standard deviation, set all values above mean + 3std to nan 
@@ -413,10 +461,15 @@ class Lidar_Processing(Node):
     
     def _FormatMsg(self,df,msg):
         """
-        Method for formatting the standard message
-        Imports modified ranges from df into msg
+        _FormatMsg (Private)
+        Method for formattting the message 
 
-        Note: Assumes ranges in df are np.floats (containing np.nan)
+        Arguments: 
+            - pd.DataFrame : df || DataFrame containing formatted ROS2 data
+            - LaserScan : msg || ROS2 message
+
+        Returns: 
+            - LaserScan : msg || Outbound ROS2 message, with modification to range from DataFrame
         """
         # Import updated ranges into the message in the correct format
         msg.ranges = df['ranges'].tolist()
@@ -424,7 +477,18 @@ class Lidar_Processing(Node):
         # Return message
         return msg
 
-    def _Format_Wall_Msg(self,lines:list,timestamp):
+    def _FormatWallMsg(self,lines:list,timestamp):
+        """
+        _FormatWallMsg (Private)
+        Method to to format return message containing wall information
+
+        Arguments: 
+            - list : lines || List of lines found from LiDAR data
+            - Unknown : timestamp || Timestamp data collected from inital Inbound ROS2 message
+
+        Returns: 
+            - String : msg || Outbound formatted ROS2 message
+        """
 
         # Determine wall number
         n = 1
@@ -454,7 +518,7 @@ def main(args=None):
     rclpy.init(args=args)
     
     # Load node
-    node = Lidar_Processing()
+    node = LidarProcessing()
 
     # Spin node
     try:

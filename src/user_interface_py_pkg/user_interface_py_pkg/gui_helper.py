@@ -1,13 +1,15 @@
-import rclpy
-import numpy as np
+################################
+# gui_helper.py
+# Part of the user_interface_py_pkg
+#
+# Author: Nathan Horder (nathan.horder.700@cranfield.ac.uk)
+# Part of Cranfield University MSC Robotics Group Project 2025-2026
+################################
+
 import asyncio
-import logging
 import holoviews as hv
 import panel as pn 
-import pandas as pd
-import threading
 import asyncio
-from node_handler import NodeHandler
 from PIL import Image
 from holoviews.streams import Pipe
 from panel import pane as pnp
@@ -17,8 +19,14 @@ pn.extension(notifications=True)
 pn.extension('terminal')
 hv.extension('bokeh')
  
-
-class GUI_Helper():
+"""
+GUIHelper
+Class to create and handle dynamic graphics for the user interface 
+Main Function: CreateGraphics
+    Arguments: N/A
+    Returns: dict : graphics || Graphics : Graphics Data (Primarily consists of Panel data)
+"""
+class GUIHelper():
     
     def __init__(self,gui, node_handler,action_handler, styles=None,dev_mode=False):
         self.gui = gui
@@ -37,14 +45,30 @@ class GUI_Helper():
         else:
             self.styles = styles
 
-
-
     def StartTimers(self):
+        """
+        StartTimers (Public)
+        Method to start periodic callback timers
+
+        Arguments: N/A
+
+        Returns: N/A
+        """
         pn.state.add_periodic_callback(self._CreateCameraImageCallback,100)
         pn.state.add_periodic_callback(self._SystemHealthCallback,250)
         pn.state.add_periodic_callback(self._CreateWallSelectionCallback,250)
 
     def CreateGraphics(self):
+        """
+        CreateGraphics (Public)
+        Main method of class, used to create all dynamic graphics of the user interface
+
+        Arguments: N/A
+
+        Returns:
+            - dict: graphics || Dictionary containing all dynamic graphics
+
+        """
         self.graphics = {}
         self.graphics["Lidar"] = self._CreateLidarGraph()
         self.graphics["Camera"] = self._CreateCameraImage()
@@ -61,8 +85,16 @@ class GUI_Helper():
 
         return self.graphics
 
-
     def _CreateLidarGraph(self):
+        """
+        _CreateLidarGraph (Private)
+        Method to generate dynamic graphics for Lidar data
+
+        Arguments: N/A
+
+        Returns:
+            - pnl.WidgetBox : lidar_scatter || Lidar Scatter widgetbox, contains hv.DynamicMap, updates through asyncio and Pipes
+        """
         lidar_pipe = Pipe(data = [])
         task = asyncio.create_task(self.node_handler.GetDataAsync('Lidar',lidar_pipe))
         lidar_dmap = hv.DynamicMap(hv.Scatter,streams=[lidar_pipe]).opts(responsive=True,color='black')
@@ -74,6 +106,15 @@ class GUI_Helper():
         return lidar_scatter
     
     def _CreateCameraImage(self):
+        """
+        _CreateCameraImage (Private)
+        Method to create camera image
+
+        Arguments: N/A
+
+        Returns:
+             pn.WidgetBox || Camera image box, with text
+        """
         self.camera_img = pnp.Image(sizing_mode='scale_both')
 
         return pn.WidgetBox(pnp.Markdown("**RGB-D Camera**",styles=self.styles['markdown_text_title']),
@@ -81,12 +122,30 @@ class GUI_Helper():
                             sizing_mode='stretch_both')
     
     def _CreateCameraImageCallback(self):
+        """
+        _CreateCameraImageCallback (Private)
+        Method to update image of camera_img (Created by _CreateCameraImage)
+        Called periodically by related timer
+
+        Arguments: N/A
+
+        Returns: N/A
+        """
         data = self.node_handler.GetData('Camera')
         if data is not None and data != []:
             img = Image.fromarray(data)
             self.camera_img.object = img
 
     def _CreateSystemHealth(self):
+        """
+        _CreateSystemHealth (Private)
+        Method to create dynamic system health visual
+
+        Arguments: N/A
+
+        Returns:
+            - pn.Column : self.system_health || System Health visual
+        """
         self.system_health = pn.Column(
             pnp.Markdown("**System Health**",styles=self.styles['markdown_text_title'],align='center'),
             pnl.Divider(),
@@ -106,6 +165,14 @@ class GUI_Helper():
         return self.system_health
 
     def _SystemHealthCallback(self):
+        """
+        _SystemHealthCallback (Private)
+        Callback method for System Health, updates visual periodically
+
+        Arguments: N/A
+
+        Returns: N/A
+        """
         data = self.node_handler.GetData("SysHP")
         keys = list(data.keys())
 
@@ -118,16 +185,20 @@ class GUI_Helper():
                     self.system_health[idx].object = f"{keys[key_idx]} : {data[keys[key_idx]]}"
                     key_idx += 1
 
-
-            
-
-
-
     def _CreateWallGraphic(self):
+        """
+        _CreateWallGraphic (Private)
+        Method to create visualisation of walls
+
+        Arguments: N/A
+
+        Returns: pnl.WidgetBox : wall_graphic || Dynamic visual of wall graphic, contains a hv.DynamicMap that udpates via asyncio and Pipes
+
+        """
         pipe = Pipe(data=[])
         task = asyncio.create_task(self.node_handler.GetDataAsync('Wall_Visual',pipe))
         # Create Dynamic map
-        dmap = hv.DynamicMap(self._CreateWallGraphic_Callback,streams = [pipe]).opts(responsive=True)
+        dmap = hv.DynamicMap(self._CreateWallGraphicCallback,streams = [pipe]).opts(responsive=True)
 
         wall_graphic = pnl.WidgetBox(
             pnp.Markdown("**Room Walls**",styles=self.styles['markdown_text_title']),
@@ -136,7 +207,16 @@ class GUI_Helper():
         
         return wall_graphic
     
-    def _CreateWallGraphic_Callback(self,data):
+    def _CreateWallGraphicCallback(self,data):
+        """
+        _CreateWallGraphicCallback (Private)
+        Callback method to update the walll graphic
+
+        Arguments: N/A
+
+        Returns:
+            - hv.Overlay || Overlay of robot position and wall visualisation
+        """
 
         test = False
 
@@ -174,14 +254,29 @@ class GUI_Helper():
             
             return hv.Overlay([]) * robot_loc
 
-        
     def _CreateWallSelection(self):
+        """
+        _CreateWallSelection (Private)
+        Method to create options for wall selection
+
+        Arguments: N/A
+
+        Returns: pnw.Select : self.wall_select || Selection box with options for each wall
+
+        """
         self.wall_select = pnw.Select(name="Select Wall to Paint",options = [1,2,3,4],align='center')
 
         return self.wall_select
     
     def _CreateWallSelectionCallback(self):
-        
+        """
+        _CreateWallSelectionCallback (Private)
+        Callback method for Wall Selection, updates options based on available walls
+
+        Arguments: N/A
+
+        Returns: N/A
+        """
         # Get data
         data = self.node_handler.GetData('Wall_Visual')
 
@@ -197,9 +292,17 @@ class GUI_Helper():
         # Update the graphic to display wall names
         self.wall_select.options = wall_options
     
-
     def _CreateCommandsEm(self):
+        """
+        _CreateCommandsEm (Private)
+        Method to create Emergency Commands
 
+        Arguments: N/A
+
+        Returns:
+            - pn.Column : emergency_commands || Column containing play, stop and skip commands
+
+        """
         self.command_action_play_em = pnw.ButtonIcon(icon='player-play',size=self.styles['emergency_command'])
         self.command_action_stop_em = pnw.ButtonIcon(icon='player-stop',size=self.styles['emergency_command'])
         self.command_action_skip_em =  pnw.ButtonIcon(icon='player-skip-forward',size=self.styles['emergency_command'])
@@ -222,6 +325,15 @@ class GUI_Helper():
         return emergency_commands
 
     def _CreateCommands(self):
+        """
+        _CreateCommands (Private)
+        Method to create action commands
+
+        Arguments: N/A
+
+        Returns: pn.Column : comands || Column containing play, stop and skip commands
+
+        """
         self.command_action_play = pnw.ButtonIcon(icon='player-play',size=self.styles['command'],align='center')
         self.command_action_stop = pnw.ButtonIcon(icon='player-stop',size=self.styles['command'],align='center')
         self.command_action_skip =  pnw.ButtonIcon(icon='player-skip-forward',size=self.styles['command'],align='center')
@@ -246,6 +358,16 @@ class GUI_Helper():
         return commands
 
     def _CreateCommandsCallback(self,caller):
+        """
+        _CreateCommandsCallback (Private)
+        Callback method for Emergency and regular commands, performs actions based on what called it
+
+        Arguments:
+            - str : caller || Which command button called this function
+
+        Returns: N/A
+
+        """
 
         if caller == 'Play' and len(self.action_handler.planned_actions) > 0:
             # Hide play button, present the stop button

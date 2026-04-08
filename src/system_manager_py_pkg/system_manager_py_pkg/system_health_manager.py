@@ -2,6 +2,7 @@
 # system_health_manager.py
 # Part of the system_manager_py_pkg
 #
+# Author: Nathan Horder (nathan.horder.700@cranfield.ac.uk)
 # Part of Cranfield University MSC Robotics Group Project 2025-2026
 ################################
 
@@ -29,12 +30,13 @@ class Node_Status(Enum):
 
 
 """
+SystemHealthManager
 Class used to determine health of the system.
 
 This is achieved by subcribing to core nodes and ensuring they are publishing, 
 then combining them into systems for generalised system health
 """
-class System_Health_Manager(Node):
+class SystemHealthManager(Node):
 
     def __init__(self):
         """
@@ -98,8 +100,15 @@ class System_Health_Manager(Node):
 
     def _NodeHealth(self,msg,topic_key):
         """
-        Method used by subscribers to check node health - achieved through a rolling mean and standard deviation
+        _NodeHealth (Private)
+        Subscriber callback method to check node health - achieved through a rolling mean and standard deviation
         NOTE: If a node is ANOMALOUS or FAULTY, it will NOT update the mean or std that loop to avoid inconsistencies
+
+        Arguments:
+            - <variable_type> : msg || Inbound ROS2 message
+            - str: topic-key || Name of Node whose health is being checked
+
+        Returns: N/A
         """
         
         # Due to setup, this is required, as all nodes will publish a message immedately on load
@@ -179,9 +188,13 @@ class System_Health_Manager(Node):
     
     def _SystemHealth(self):
         """
+        _SystemHealth (Private)
         Method called periodically to check system health - Calls each system with their respective nodes
-        """
 
+        Arguments: N/A
+
+        Returns: N/A
+        """
         # Update GUI status - solely based on GUI node
         self._SystemHealthCheck('GUI',['gui'])
 
@@ -211,7 +224,14 @@ class System_Health_Manager(Node):
 
     def _SystemHealthCheck(self,system,nodes):
         """
+        _SystemHealthCheck (Private)
         Method to check system health, and prepares publishing information
+
+        Arguments:
+            - str : system || Identification of system being checked
+            - list : nodes || List of all subscriber nodes of this class
+
+        Returns: N/A
         """
 
         # Init counters
@@ -257,12 +277,15 @@ class System_Health_Manager(Node):
 
             # Send intruction to terminate and block further mobile base commands
             # Send notification of faulty node
-        
-
-            
+              
     def _Publish(self):
         """
-        Publishing method
+        _Publish (Private)
+        Method to publish system health message
+
+        Arguments: N/A
+
+        Returns: N/A
         """
         # Prepare msg
         msg = DiagnosticArray()
@@ -284,10 +307,14 @@ class System_Health_Manager(Node):
 
 
 def main(args=None):
+    """
+    main
+    Function to spin System_Health_Manager nodes
+    """
     rclpy.init(args=args)
     
     # Load node
-    node = System_Health_Manager()
+    node = SystemHealthManager()
 
     # Spin node
     try:
