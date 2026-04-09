@@ -1,0 +1,13 @@
+{
+    "terminate_distance" :"0.4",
+    "comment_terminate_distance" : "Robot will terminate if anything is within 0.4 meters (40cm, 400mm) from robot - includes non-stationary entities",
+    "slow_distance_moving_entity" : "2",
+    "comment_slow_distance_moving_entity" : "Robot motion will slow when a moving entity is within 2 meters of the robot",
+    "terminate_distance_moving_entity" : "1",
+    "comment_terminate_distance_moving_entity" : "Terminate when a moving entity enters within 1m of the robot",
+
+    "dev_note" : "These distance are 'magic' numbers, please replace with calaculated distances according to ISO Standards",
+    "dev_note_2" : "terminate_distance is set to 0.4, as the robot plans to stop at 0.5m to the nearest wall (typically adjacent to target wall)"
+    
+
+}

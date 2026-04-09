@@ -330,7 +330,7 @@ class LidarProcessing(Node):
         self._calculate_walls = True
 
         self.subscriber = self.create_subscription(LaserScan,'/scan',self._Process,10)
-        self.subscriber = self.create_subscription(Bool,'/wall/recalculate',self._Recalculate,10) # Will need someone to determine room dimensions, if room dimensions change, then rescan for walls
+        self.subscriber_wall = self.create_subscription(Bool,'/wall/recalculate',self._Recalculate,10) # Will need someone to determine room dimensions, if room dimensions change, then rescan for walls
         self.publisher_wall_designation = self.create_publisher(String,'/wall/designation',10)
         self.publisher_main = self.create_publisher(LaserScan,'/processed/scan',10)
 
