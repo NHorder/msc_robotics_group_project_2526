@@ -5,7 +5,7 @@
 # Author: Nathan Horder (nathan.horder.700@cranfield.ac.uk)
 # Part of Cranfield University MSC Robotics Group Project 2025-2026
 ################################
-#%%
+#%% Imports
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import LaserScan
@@ -14,13 +14,17 @@ from std_msgs.msg import String
 import json
 from enum import Enum
 
-
 ############
 # DEV NOTE:
-# This will not be active during simulation execution due to use of LiDAR.
-# If used in real-world, multi-LiDAR fusion is required to ensure 360 unobstructed
-# view of environment, with assumed ignore of objects ON the mobile base
-# current simulation does not do this
+# This file is intended to showcase a potential approach to handling safety situations at sensor-level
+# This code will NOT work, and relies on a number of assumptions
+# Assumptions
+#   - Multi-LiDAR fusion: Multi-LiDAR fusion is published with entities on robot base ignored
+#   - Does not include entity detection and tracking algorithms - these systems would need to track entity movement during robot base motion
+#
+# If run using present simulation, system will immediately terminate due to recognisation of entities on mobile base
+#
+# Entities on mobile base refer to manipulator arm, paint bucket, GUI screen stand, etc.
 ############
 
 """
@@ -53,7 +57,7 @@ class LidarSafety(Node):
         self.subscriber = self.create_subscription(LaserScan,'/scan',self._Process,10)
 
         # Create publisher for safety publishing - motion systems should subscribe to this, and upon reading anything but 'Continue' should act
-        self.publisher = self.create_publisher(String,'safety',10)
+        self.publisher = self.create_publisher(String,'/safety',10)
 
         # Need direct link to UI (for reset)
 
@@ -64,7 +68,17 @@ class LidarSafety(Node):
 
         self.thread_results = []
 
-    def _Process(self,msg):
+    def _Process(self,msg:LaserScan):
+        """
+        _Process (Private)
+        LiDAR Subscriber call back function 
+
+        Arguments:
+            - LaserScan : msg || Inbound ROS2 messages
+
+        Returns: N/A
+        - Publishes message
+        """
         self.thread_results.clear()
         # Called when scan data is received
 
@@ -83,13 +97,33 @@ class LidarSafety(Node):
         self._Publish()
 
     def _Reset(self):
+        """
+        _Reset (Private)
+        System Reset callback, resets system from a Termination state
+
+        Arguments: N/A
+
+        Returns:
+            - bool : True || Notifies caller that reset was sucessful
+        """
+
         # Set action taken to 
         self.action_taken = SafetyCommands.CONTINUE
 
         # Notify caller that a RESET has occurred
         return True
     
-    def _TerminateAllEntities(self,msg):
+    def _TerminateAllEntities(self,msg:LaserScan):
+        """
+        _TerminateAllEntities (Private)
+        Thread handling termination based on distance to all entities- regardless if entity is moving or not
+
+        Arguments:
+            - LaserScan : msg || Inbound ROS2 message
+
+        Returns: N/A
+        """
+
         # Immediately end action if termination command has been issued
         if self.action_taken == SafetyCommands.TERMINATE:
             return
@@ -104,14 +138,25 @@ class LidarSafety(Node):
                 break
 
     def _TerminateMovingEntity(self,msg):
+        """
+        _TerminateMovingEntity (Private)
+        Thread method to handle moving entities
+
+        Note: Incomplete, requires entity identification system that is capable of handling moving entities whilst the robot is in motion
+
+        Arguments:
+            - LaserScan : msg || Inbound ROS2 message
+
+        Returns: N/A
+        """
 
         # Immediately end action if termination command has been issued
         if self.action_taken == SafetyCommands.TERMINATE:
             return
-        
 
         entities = [] # Replace with check / function to call to check for moving entities
 
+        # Init booleans
         abrupt_end = False
         slow = False
         
@@ -139,6 +184,16 @@ class LidarSafety(Node):
             self.thread_results.append(SafetyCommands.CONTINUE)
 
     def _Publish(self):
+        """
+        _Publish (Private)
+        Starting point of the GUI class, prepares the user interface for presentation
+
+        Arguments: N/A
+
+        Returns: N/A
+         - Publishes result to /safety
+        """
+
         msg = String()
 
         # Loop through all resuslts, note this function is also called on the threads
@@ -168,7 +223,12 @@ class LidarSafety(Node):
         self.publisher.publish(msg)
         
 
+"""
+main
+Function to spin the ROS2 LidarSafety node
 
+NOTE: Currently disabled due to LiDAR requirements
+"""
 def main(args=None):
     return # Prevention of spinning, due to simulation representation, remove when simulation meets requirements.
 
