@@ -172,7 +172,7 @@ class GUI():
         base[4:5,8:12] =  self.helper_graphics["Emergency_Commands"] # Emergency commands and other command commands
         
         # Save result to pages dictionary
-        self.pages["Home"] = base
+        self.pages["Home"] = pn.Row(base,self.helper_graphics['Safety'])
 
     def _OrganiseMotionScreen(self):
         """
@@ -262,7 +262,7 @@ class GUI():
         content = pn.bind(self._ChangeSubPageMotion,value=radio,robot_base = robot_base, manipulator_arm=manipulator_arm)
         
         # Save page to pages dictionary
-        self.pages["Motion"] = pn.Column(radio,content)
+        self.pages["Motion"] = pn.Column(radio,content,self.helper_graphics['Safety'])
 
     def _ChangeSubPageMotion(self,value,robot_base,manipulator_arm):
         """
@@ -294,9 +294,7 @@ class GUI():
         base[0:,1:4] = self.helper_graphics["Wall_Visual"] # Room Plan (With labeled walls)
         
         # Save as actions page
-        self.pages["Actions"] = base
-
-
+        self.pages["Actions"] = pn.Row(base,self.helper_graphics['Safety'])
 
     def _OrganiseRobotInfoScreen(self):
         """
@@ -325,10 +323,9 @@ class GUI():
         logging_info = pn.Column(pnp.Markdown("Critical Logging",styles=self.styles['markdown_text_title'],align='center'),pnw.Terminal("V.I.S.N.A.T Terminal",sizing_mode = 'stretch_both'))
         logging_critical = pn.Column(pnp.Markdown("All Logging",styles=self.styles['markdown_text_title'],align='center'),pnw.Terminal("V.I.S.N.A.T Critical Terminal", sizing_mode = 'stretch_both'))
 
-        logging_base = pn.Row(logging_critical,logging_info,sizing_mode='stretch_both')
+        logging_base = pn.Row(logging_critical,logging_info,self.helper_graphics['Safety'],sizing_mode='stretch_both')
 
         self.pages["Logging"] = logging_base
-
 
     def _OrganiseSideBar(self):
         """
@@ -379,7 +376,6 @@ class GUI():
         """
         self.node_handler.Publish("Current_Action",self.action_handler.active_action)
         
-
     async def _PublishingLoop(self,interval, function):
         """
         _PublishingLoop
@@ -422,10 +418,11 @@ if __name__ == "__main__":
     rclpy.init()
 
     # Create GUI class
-    gui = GUI()
+    gui = GUI(True)
 
     # Get and create the app
     app = gui.RunApp()
 
     # Programmically serve the app
     pn.serve(app)
+

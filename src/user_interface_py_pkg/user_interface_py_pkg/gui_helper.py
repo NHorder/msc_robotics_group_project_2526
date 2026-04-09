@@ -54,9 +54,10 @@ class GUIHelper():
 
         Returns: N/A
         """
-        pn.state.add_periodic_callback(self._CreateCameraImageCallback,100)
-        pn.state.add_periodic_callback(self._SystemHealthCallback,250)
-        pn.state.add_periodic_callback(self._CreateWallSelectionCallback,250)
+        pn.state.add_periodic_callback(self._CreateSafetyMessageCallback,100) # Run every 100ms
+        pn.state.add_periodic_callback(self._CreateCameraImageCallback,100) # Run every 100ms
+        pn.state.add_periodic_callback(self._SystemHealthCallback,250) # Run every 250ms
+        pn.state.add_periodic_callback(self._CreateWallSelectionCallback,250) # Run every 250ms
 
     def CreateGraphics(self):
         """
@@ -70,6 +71,7 @@ class GUIHelper():
 
         """
         self.graphics = {}
+        self.graphics["Safety"] = self._CreateSafetyMessage()
         self.graphics["Lidar"] = self._CreateLidarGraph()
         self.graphics["Camera"] = self._CreateCameraImage()
         self.graphics["SystemHealth"] = self._CreateSystemHealth()
@@ -84,6 +86,85 @@ class GUIHelper():
         self.graphics["Action_Progress"] = actions[2]
 
         return self.graphics
+
+    def _CreateSafetyMessage(self):
+
+        title = pnp.Markdown("**Emergency**",styles=self.styles['markdown_text_title'])
+        description = pnp.Markdown("V.I.S.N.A.T functions have been terminated. The cause of this may result from faulty sensors, " \
+            "faulty systems or an entity is too close to the mobile base. Once a solution has been determined, please select 'RESET' to continue the current action",styles=self.styles['markdown_text_reg'])
+        reset_system = pnw.Button(name='RESET',button_type = 'danger',button_style='solid')
+
+        reset_system.on_click(self._CreateSafetyMessageButtonCallback)
+
+        self.announcement = pn.Modal(
+            title,
+            description,
+            reset_system,
+            background_close = False,
+            show_close_button = False
+        )
+
+        self.announcement.hide()
+
+        self.safety_terminate_msg_shown = False
+        self.safety_slow_added = False
+        self.safety_slow_removed = False
+
+        return self.announcement
+
+    def _CreateSafetyMessageCallback(self):
+        """
+        _CreateSafetyMessageCallback (Private)
+        Method to activate safety information
+
+        Arguments: N/A
+
+        Returns: N/A
+        """
+
+        msg = self.node_handler.GetData('Safety')
+
+        # If the msg is 'terminate'
+        if msg == 'terminate':
+            if (not self.safety_terminate_msg_shown):
+                # Present the announcement, assume all other systems are stopped during this time. Await confirmation to reset
+                self.announcement.show()
+
+                # Pause current action
+                self.action_handler.PauseAction()
+                
+                # Prevent flickering visual
+                self.safety_slow_added = False
+                self.safety_slow_removed = False
+                self.safety_terminate_msg_shown = True
+
+        # If the msg is 'slow'
+        elif msg == 'slow':
+
+            if (not self.safety_slow_added and self.action_handler.active_action != None):
+                # Update current progress
+                self.action_handler.progress[3].object = self.action_handler.progress[3].object + " (Slow)"
+
+                # Prevent flickering visual
+                self.safety_slow_added = True
+                self.safety_slow_removed = False
+                self.safety_terminate_msg_shown = False
+        
+        # Else it's functioning normally
+        else:
+            if (not self.safety_slow_removed):
+                self.action_handler.progress[3].object = (self.action_handler.progress[3].object).strip("(Slow)")
+                
+                # Prevent flickering visual
+                self.safety_slow_added = False
+                self.safety_slow_removed = True
+                self.safety_terminate_msg_shown = False
+
+    def _CreateSafetyMessageButtonCallback(self,event):
+        self.announcement.hide()
+
+        # Notify safety systems to reset
+        # NOTE: Safety systems are not used during the simulation, see sensor_safety_py_pkg for more information
 
     def _CreateLidarGraph(self):
         """

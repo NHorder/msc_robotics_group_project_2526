@@ -10,6 +10,7 @@ import rclpy
 from rclpy.node import Node
 import asyncio
 import json
+import yaml
 import numpy as np
 import cv2 as cv
 from holoviews.streams import Pipe
@@ -32,15 +33,17 @@ class NodeHandler(Node):
 
         self.subscribers = {}
         self.subscriber_data = {}
+        self.subscribers['Safety'] = self.create_subscription(String,'/safety',lambda msg: self._UpdateData(msg,'Safety'),10)
         self.subscribers['Camera'] = self.create_subscription(Image,'/camera/image_raw',lambda msg: self._UpdateData(msg,'Camera'),10)
         self.subscribers['Lidar'] = self.create_subscription(LaserScan,'/processed/scan',lambda msg: self._UpdateData(msg,'Lidar'),10)
         self.subscribers['SysHP'] = self.create_subscription(DiagnosticArray,'/system_health',lambda msg: self._UpdateData(msg,'SysHP'),10)
         self.subscribers['Wall_Visual'] = self.create_subscription(String,'/wall/designation',lambda msg: self._UpdateData(msg,'Wall_Visual'),10)
 
         self.subscriber_data["Lidar"] = []
-        self.subscriber_data['Camera'] = []
+        self.subscriber_data['Camera'] = np.empty((0))
         self.subscriber_data['SysHP'] = {}
         self.subscriber_data['Wall_Visual'] = []
+        self.subscriber_data['Safety'] = 'Nothing'
 
         self.nodes = {}
         self.nodes["Current_Action"] = self.create_publisher(String,'/gui/action',10)
@@ -122,8 +125,7 @@ class NodeHandler(Node):
         """
         if id in self.subscribers.keys():
             return self.subscriber_data[id]
-    
-
+        
     def Publish(self,id,data):
         """
         Publish (Public)
@@ -172,6 +174,9 @@ class Decoder():
         """
 
         match id:
+
+            case 'Safety':
+                return msg.data
 
             case 'Lidar':
                 return self._DecodeScan(msg)
@@ -284,6 +289,7 @@ class Decoder():
                     count+=1
                 
             return np.array(joined_lines)
+
 
     def _DecodeImage(self,msg:Image):
         """
