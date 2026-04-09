@@ -132,7 +132,7 @@ class GUIHelper():
         Returns: N/A
         """
         data = self.node_handler.GetData('Camera')
-        if data is not None and data != []:
+        if data is not None and data.size > 0:
             img = Image.fromarray(data)
             self.camera_img.object = img
 

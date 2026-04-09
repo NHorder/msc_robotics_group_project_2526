@@ -13,9 +13,7 @@ import json
 import numpy as np
 from sensor_msgs.msg import LaserScan
 import pandas as pd
-import holoviews as hv
 from enum import Enum
-hv.extension('bokeh')
 
 #%%
 
@@ -315,7 +313,7 @@ class DetermineWalls():
             points.append([x,y])
 
         # Return holoviews scatter graph and points
-        return hv.Scatter(points).opts(color=color), points
+        return points
 
 
 """
@@ -453,7 +451,7 @@ class LidarProcessing(Node):
         df.loc[df['ranges'] > df['thd'],'ranges'] = np.nan
         
         # Call display and discard the graph, retain the points (x,y) positions
-        _, points = self.wall_algorithm.Display(df)
+        points = self.wall_algorithm.Display(df)
 
         # Return the points
         return df,points

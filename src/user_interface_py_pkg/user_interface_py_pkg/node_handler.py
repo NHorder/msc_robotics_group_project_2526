@@ -294,7 +294,7 @@ class Decoder():
             - Image : msg || Inbound ROS2 message
 
         Returns:
-            - cv2 img : frame || Image in format useable by OpenCV
+            - ndarray img : frame || Image in format useable by OpenCV
 
         """
         frame = CvBridge().imgmsg_to_cv2(msg)
