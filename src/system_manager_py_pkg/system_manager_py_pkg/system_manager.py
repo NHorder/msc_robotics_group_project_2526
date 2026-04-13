@@ -2,11 +2,11 @@
 # system_manager.py
 # Part of the system_manager_py_pkg
 #
+# Author: Nathan Horder (nathan.horder.700@cranfield.ac.uk)
 # Part of Cranfield University MSC Robotics Group Project 2025-2026
 ################################
 
 # Imports!
-import rclpy
 from rclpy.node import Node
 from enum import Enum
 from std_msgs.msg import String
@@ -35,7 +35,6 @@ Class to handle robot states and transitions between states
 """
 class System_Manager(Node):
     
-
     def __init__(self):
         """
         Initialisation Method
@@ -76,8 +75,6 @@ class System_Manager(Node):
         # Periodically determine state and publish
         # NOTE: Safety is critical, dedicated bypass of state determination
         self.timer = self.create_timer(0.5, self._DetermineState)
-
-    
 
     def _SubscriberCallback(self,msg,topic_key):
         """

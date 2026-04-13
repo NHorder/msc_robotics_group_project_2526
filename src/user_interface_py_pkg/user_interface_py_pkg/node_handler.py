@@ -14,7 +14,7 @@ import yaml
 import numpy as np
 import cv2 as cv
 from holoviews.streams import Pipe
-from std_msgs.msg import String
+from std_msgs.msg import String, Bool
 from diagnostic_msgs.msg import DiagnosticArray
 from sensor_msgs.msg import LaserScan, Image
 from cv_bridge import CvBridge
@@ -47,6 +47,7 @@ class NodeHandler(Node):
 
         self.nodes = {}
         self.nodes["Current_Action"] = self.create_publisher(String,'/gui/action',10)
+        self.nodes["Rescan"] = self.create_publisher(Bool,'/wall/recalculate',10)
 
 
     def Spin(self):
@@ -83,12 +84,12 @@ class NodeHandler(Node):
 
         Returns: N/A
         """
+
+        # Check if the id is known
         if (id in self.subscribers.keys()):
+
+            # Decode the message, save to subscriber_data
             self.subscriber_data[id] = self.decoder.DecodeMsg(msg,id)
-
-            if (id == 'Lidar'):
-                self.subscriber_data['unique'] = msg
-
 
     async def GetDataAsync(self,id:String, gui_pipe: Pipe):
         """
@@ -102,9 +103,17 @@ class NodeHandler(Node):
 
         Returns: N/A
         """
+
+        # Check if key is present
         if id in self.subscribers.keys():
+            
+            # Set a loop to send the data to the provided pipe
+            # Pipes are used by HoloViews visuals for streaming data
             while True:
+                # Wait a second
                 await asyncio.sleep(1)
+
+                # Send data
                 gui_pipe.send(np.array(self.subscriber_data[id]))
         else:
             # Throw warning
@@ -123,7 +132,10 @@ class NodeHandler(Node):
         Returns:
             - <variable_type>  || Subscriber data
         """
+        # Check if the id is pressent within the known subscribers
         if id in self.subscribers.keys():
+            
+            # If so return the associated data
             return self.subscriber_data[id]
         
     def Publish(self,id,data):
@@ -138,15 +150,22 @@ class NodeHandler(Node):
         Returns: N/A
         """
 
+        # If id is current action, prepare the message as a String
         if id == "Current_Action":
             msg = String()
             
+            # Check there is data
             if data == None or data.wall == None:
                 msg.data = "None"
             else:
                 msg.data = data.wall
 
+            # publish message
             self.nodes["Current_Action"].publish(msg)
+        
+        # Elif its Rescan, prepare it as a boolean
+        elif id == "Rescan":
+            pass
         
         
 """
@@ -173,6 +192,7 @@ class Decoder():
             - <variable_type>  || Decoded message
         """
 
+        # Switch-case through all possible ids, decode according to exepcted message
         match id:
 
             case 'Safety':
@@ -289,7 +309,6 @@ class Decoder():
                     count+=1
                 
             return np.array(joined_lines)
-
 
     def _DecodeImage(self,msg:Image):
         """

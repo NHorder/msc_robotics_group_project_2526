@@ -1,4 +1,4 @@
-                  ################################
+################################
 # system_health_manager.py
 # Part of the system_manager_py_pkg
 #
@@ -58,6 +58,7 @@ class SystemHealthManager(Node):
         )
 
         #NOTE: This does not account for health of the data - that's at sensor processing level
+        #      this refers to anomalous readings or signifcant batch deviations from exepcted values, I.e when moving, the motion of one wheel exceeds 90mph
 
         # Health of nodes: Starts with no-connection, can be: HEALTHY, NO_CONNECTION, ANOMALOUS, FAULTY
         # ANOMALOUS means a unexpected increase in timing between messages
@@ -78,7 +79,7 @@ class SystemHealthManager(Node):
         self.systems_status['Mobile_Base'] = [DiagnosticStatus.STALE,'NO_CONNECTION']
         self.systems_status['Manipulator_Arm'] = [DiagnosticStatus.STALE,'NO_CONNECTION']
         self.systems_status['Visual_Sensor_Systems'] = [DiagnosticStatus.STALE,'NO_CONNECTION']
-        self.systems_status['DataProcessing'] = [DiagnosticStatus.STALE,'NO_CONNECTION']
+        self.systems_status['Data_Processing'] = [DiagnosticStatus.STALE,'NO_CONNECTION']
         self.systems_status['Path_Planning'] = [DiagnosticStatus.STALE,'NO_CONNECTION']
         self.systems_status['Path_Following'] = [DiagnosticStatus.STALE,'NO_CONNECTION']
         self.systems_status['Simulation'] = [DiagnosticStatus.STALE,'NO_CONNECTION']
@@ -136,7 +137,6 @@ class SystemHealthManager(Node):
             time = timestamp.sec + timestamp.nanosec / 1e9
         except:
             time = 0
-        
 
         # Try to access the data - data may not be present at intial run
         try:
@@ -159,7 +159,10 @@ class SystemHealthManager(Node):
         # Determine difference in time
         delta_time = time - previous_time
 
-
+        # Set a minimum loop counter, meaning at least self.data_loop_max runs need to be done before we begin marking the status
+        # this is to ensure that enough data has been collected across nodes to enable accurate represenation of the node status
+        # NOTE: this is across ALL nodes, and will most likely exceed self.data_loop_max as this function is a callback, and 
+        # self.data_loop is a single item - Potentially NOT thread-safe (assuming subscribers run on different threads)
         if self.data_loop >= self.data_loop_max:
             # Determine if within range of mean and +3 stds
             if (delta_time > mean+(3 * std)):
@@ -189,6 +192,7 @@ class SystemHealthManager(Node):
             else:
                 self.node_status[topic_key] = Node_Status.HEALTHY
         else:
+            # Increment loop counter
             self.data_loop += 1
 
 
@@ -204,7 +208,6 @@ class SystemHealthManager(Node):
         # Update node
         self.node_prev[topic_key] = [time,mean_new,std_new,sum_squares,num_seen+1,anomalous_readings]
 
-    
     def _SystemHealth(self):
         """
         _SystemHealth (Private)
@@ -227,7 +230,7 @@ class SystemHealthManager(Node):
         self._SystemHealthCheck('Visual_Sensor_Systems',['camera','lidar']) # And any other sensors
 
         ## Data Processing (package)
-        self._SystemHealthCheck('DataProcessing',['lidar_processed']) # And processed output nodes
+        self._SystemHealthCheck('Data_Processing',['lidar_processed']) # And processed output nodes
 
         ## Path Planning (package)
         #self._SystemHealthCheck('Path_Planning') # Base planning and manipulator arm following
@@ -270,10 +273,6 @@ class SystemHealthManager(Node):
                 self.systems_status[system] = [DiagnosticStatus.ERROR,'FATAL']
                 # Throw immediate faulty error
                 break
-
-        if system == 'Visual_Sensor_Systems' or system == 'Mobile_Base':
-            print(system,self.systems_status[system],health,anom,offline,num_nodes)
-            
 
         # If all nodes are healthy, then the system is healthy
         if num_nodes == health:
@@ -356,4 +355,3 @@ def main(args=None):
 
 if __name__ == '__main__':
     main()
-# %%

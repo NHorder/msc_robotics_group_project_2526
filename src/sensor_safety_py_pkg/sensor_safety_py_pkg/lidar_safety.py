@@ -59,13 +59,15 @@ class LidarSafety(Node):
         # Create publisher for safety publishing - motion systems should subscribe to this, and upon reading anything but 'Continue' should act
         self.publisher = self.create_publisher(String,'/safety',10)
 
-        # Need direct link to UI (for reset)
+        # Would require direct link to UI (for reset) (either through a dedicated topic or a one-to-one communication line)
 
         # Store functions
         self.safety_funcs = [self._TerminateMovingEntity,self._TerminateAllEntities]
 
+        # Set action taken (Continue, means all is good)
         self.action_taken = SafetyCommands.CONTINUE
 
+        # Save thread results
         self.thread_results = []
 
     def _Process(self,msg:LaserScan):

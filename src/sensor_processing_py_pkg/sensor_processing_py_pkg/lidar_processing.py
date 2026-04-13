@@ -78,7 +78,7 @@ class DetermineWalls():
                 line.start = list(point)
                 continue
             
-            # If the line has no end, give it an end, DO NOT skip rest of loop (needed for direction)
+            # If the line has no end, give it an end, DO NOT skip rest of loop (needed for line direction)
             if line.end == []:
                 line.end = list(point)
             
@@ -96,6 +96,7 @@ class DetermineWalls():
 
             # If the direction changes, it's a new line
             # Essentially, use the current line direction, compare to where the new point is
+            # Untested on diagonals, but should work in theory
             if current_dir != line.dir:
                 lines.append(line)
                 line = Line()
@@ -164,6 +165,7 @@ class DetermineWalls():
 
             # If previous line is empty, add the first line and set previous line, skip rest of loop
             # - Assumption first line is NOT on an edge, joining of lines is handled in Line-04 (ConnectListEdge)
+            # - Assumes first and last line meet at the same point (or within <=0.1m distance between them) and share a direction
             if prev_line == []:
                 filtered_lines.append(line)
                 prev_line = line
@@ -380,10 +382,8 @@ class LidarProcessing(Node):
             # Format output message (Wall data)
             self.wall_msg = self._FormatWallMsg(lines_final,df['timestamp'][0]) # All timestamps are the same
         
-
         # Format output message (No wall data)
         out_msg = self._FormatMsg(df,msg)
-
 
         # Publish
         self.publisher_main.publish(out_msg)

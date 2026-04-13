@@ -29,6 +29,7 @@ class ActionHandler():
 
     def __init__(self,styles=None,dev_mode=False):
 
+        # If styles is None, define default
         if (styles == None):
             self.styles = {}
             self.styles['buttons'] = ['primary','outline']
@@ -40,17 +41,24 @@ class ActionHandler():
         else:
             self.styles = styles
 
+        # Dev mode is used to remove certain restrictions within the system, I.e creating actions when walls are not present
         self.dev_mode = dev_mode
 
+        # Define the active action - this is the action the robot is currently performing
         self.active_action = None
 
+        # Define the planned actions, these are all actions the robot will complete in order
         self.planned_actions = []
+
+        # Define visual component of planned actions
         self.graphics_list = pn.Column(align='center',sizing_mode= 'stretch_both',scroll = True,height_policy="max")
         self.graphics_list.append(pnp.Markdown("No Actions Planned",styles={'font-size': '11pt'},align='center'))
-
+        
+        # Define a minimised visual component of planned actions (contains current and next ONLY)
         self.reduced_graphics_list = pn.Column(align='center',sizing_mode= 'stretch_both',scroll = True,height_policy="max")
         self.reduced_graphics_list.append(pnp.Markdown("No Actions Planned",styles={'font-size': '11pt'},align='center'))
 
+        # Define action counter
         self.counter = 0
 
         self.initialising = True
@@ -67,15 +75,18 @@ class ActionHandler():
             - tuple : (pn.WidgetBox: action_area, pn.Column: self.reduced_graphics_list, pn.Column: self.progress) || Returns 3 visuals, action creation area, a minimal action presention and progress for current action
 
         """
+        # Acquire graphics dictionary from the UI helper
         self.helper_graphics = ui_helper.graphics
 
-        self.action_name = pnw.TextInput(name="Action Name:",placeholder="Action X",align='center')
-        self.wall_select = self.helper_graphics["Wall_Selection"]
-        self.action_location = pnw.Select(name="Select when to perform action",options=["Now"])
+        # Set wall name, wall selection and action location
+        self.action_name = pnw.TextInput(name="Action Name:",placeholder="Action X",align='center') 
+        self.wall_select = self.helper_graphics["Wall_Selection"]                               # WHERE to perform action
+        self.action_location = pnw.Select(name="Select when to perform action",options=["Now"]) # WHEN to perform action
 
         # Code to generate the modify or create action area
         action_planner_name = pnp.Markdown("**Action Planner**",styles=self.styles['markdown_text_title'],align='center')
-        
+
+        # A confirm button is needed, else when one of name, wall select, action loc are selected a new action would be created.
         confirm_button = pnw.Button(name="Save Action",button_type="success",button_style=self.styles['buttons'][1],align='center')
 
         # Conglomerate all the widgets into a dedicated area
@@ -84,7 +95,7 @@ class ActionHandler():
             self.action_name,
             self.wall_select,
             self.action_location,
-            confirm_button,
+            pn.Row(confirm_button,self.helper_graphics['Rescan'],align='center'),
             pn.bind(self.CreateAction,button = confirm_button),
             sizing_mode='stretch_width',
             align= 'center'
@@ -127,15 +138,15 @@ class ActionHandler():
         if self.initialising:
             return
         
+        # Acquire values for name, wall and action placement
         name = self.action_name.value
         wall = self.wall_select.value
         idx = self.action_location.value
 
-
+        # Prevent action from being created if there are no walls that have been identified
         if not self.dev_mode and wall == "No Walls Identified, please move to better position":
-            # Throw warning
-
-            # Then don't do anything, WE NEED WALLS to make any action
+            # Don't do anything, WE NEED WALLS to make any action
+            # UI helper handles notification of this
             return 
        
         # Update counter for total actions created
@@ -198,11 +209,13 @@ class ActionHandler():
             self.planned_actions.insert(int(idx),action)
             self.graphics_list.insert(int(idx),visual)
         
-
+        # Call update to options - updates the graphic for wall options
         self._UpdateOptions()
+
+        # Call update for minimal graphics list (in instances where the current action or next action has been replaced or changed)
         self._UpdateMinimalGraphicsList()
 
-        # Shite - needs to know where it is at all times
+        # Link edit and delete buttons to related actions
         edit_button.on_click(lambda exec : self.EditAction(action))
         delete_button.on_click(lambda exec : self.DeleteAction(action))
 
@@ -216,6 +229,7 @@ class ActionHandler():
         Returns: N/A
         """
 
+        # Check if there is an item
         if (len(self.planned_actions) > 0):
             # Acquire first action
             action = self.planned_actions[0]
@@ -241,12 +255,14 @@ class ActionHandler():
 
         Returns: N/A
         """
+        # Acquire the next action
         action = self.planned_actions[1]
 
         # Creation of visual
         edit_button = pnw.ButtonIcon(icon='edit',size="2em",align="center")
         delete_button = pnw.ButtonIcon(icon='trash',size="2em",align="center")
 
+        # Update the visual
         visual = pn.WidgetBox(pn.Row(
             pnp.Markdown(f"{action.name} || Wall: {action.wall}",styles={'font-size': '11pt'},align="center"),
             edit_button,
@@ -254,9 +270,11 @@ class ActionHandler():
             sizing_mode='stretch_width'
         ))
 
+        # Link edit and delete buttons
         edit_button.on_click(lambda exec : self.EditAction(action))
         delete_button.on_click(lambda exec : self.DeleteAction(action))
 
+        # Update the graphics list of update
         self.graphics_list[1] = visual
 
     def _UpdateOptions(self):
@@ -278,8 +296,9 @@ class ActionHandler():
             else:
                 opts.append(idx)
 
+        # Minor implementation for semantic text
         if (len(self.planned_actions) == 1): opts.append("Next")
-        else: opts.append('Later')
+        else: opts.append('Later') # Later does refer to end of list
         self.action_location.options = opts
     
     def _UpdateMinimalGraphicsList(self):
@@ -291,15 +310,22 @@ class ActionHandler():
 
         Returns: N/A
         """
+        # Empty the list
         self.reduced_graphics_list.clear()
 
+        # Retrieve data from main list
         data = self.graphics_list[:2]
 
+        # If there is one item, just append it
         if len(data) == 1:
             self.reduced_graphics_list.append(data[0])
+        
+        # If there are more than two items, re-create the next item (idx = 1)
         elif (len(data) >= 2):
+            # Append the first item (current action)
             self.reduced_graphics_list.append(data[0])
 
+            # Prepare the next action visual
             action = self.planned_actions[1]
             next_item = pn.WidgetBox(
                     pnp.Markdown(f"**Next Action**:   {action.name} || Wall: {action.wall}",styles={'font-size': '11pt'},align="center"),
@@ -308,6 +334,7 @@ class ActionHandler():
                     sizing_mode='stretch_width'
                 )
             
+            # Append to list
             self.reduced_graphics_list.append(next_item)
 
 
@@ -325,6 +352,7 @@ class ActionHandler():
         if self.initialising:
             return
         
+        # Identify index of the action to edit
         idx = self.planned_actions.index(action)
 
         # Delete action from list
@@ -354,6 +382,7 @@ class ActionHandler():
         self.planned_actions.pop(idx)
         self.graphics_list.pop(idx)
 
+        # if there are no planned actions, then append "No Actions Planned" to the visual graphic
         if (len(self.planned_actions) < 1):
             self.graphics_list.append(pnp.Markdown("No Actions Planned",styles={'font-size': '11pt'},align='center'))
 
@@ -369,6 +398,7 @@ class ActionHandler():
         # Delete action from list
         self.DeleteAction(0)
 
+        # Set no action selected, as the current action has concluded
         self.progress[1] = pnp.Markdown("No Action Selection",styles = self.styles['markdown_text_reg'],align='center')
         self.progress[2] = pnp.Markdown("",styles = self.styles['markdown_text_reg'],align='center')
         self.progress[3] = pnp.Markdown("Progress: N/A",styles = self.styles['markdown_text_reg'],align='center')
@@ -433,7 +463,30 @@ class ActionHandler():
         self.active_action = None
         self.ConcludeAction()
 
+    def Rescan(self):
+        """
+        Rescan
+        Method following execution of rescan
 
+        Arguments: N/A
+
+        Returns: N/A
+
+        """
+        
+        # Since we are rescanning the walls, all previous information becomes redundant
+        # cannot confirm that Wall A in previous scan is same wall in new scan, hence reset
+
+        # Set current action to None
+        self.active_action = None
+        # Clear list
+        self.planned_actions.clear()
+
+        # Set no action selected
+        self.progress[1] = pnp.Markdown("No Action Selection",styles = self.styles['markdown_text_reg'],align='center')
+        self.progress[2] = pnp.Markdown("",styles = self.styles['markdown_text_reg'],align='center')
+        self.progress[3] = pnp.Markdown("Progress: N/A",styles = self.styles['markdown_text_reg'],align='center')
+        
     def _RetrieveActionProgress(self):
         """
         _RetrieveActionProgress
@@ -447,5 +500,3 @@ class ActionHandler():
         """
         pass
 
-
-# %%

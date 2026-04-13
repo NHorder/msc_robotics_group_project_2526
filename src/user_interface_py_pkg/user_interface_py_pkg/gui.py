@@ -76,9 +76,10 @@ class GUI():
         Returns:
             - pn.template.VanillaTemplate: app
         """
-        # Createa all the screens
+        # Create graphics
         self._CreateGraphics()
 
+        # Organise screens
         self._OrganiseHomeScreen()
         self._OrganiseMotionScreen()
         self._OrganiseActionScreen()
@@ -100,9 +101,9 @@ class GUI():
             main = [main_content],
             sidebar = side_bar,
             collapsed_sidebar = True, # Have the sidebar start collapsed
-            
         )
 
+        # Start timers on load, starting the periodic callbacks
         pn.state.onload(self.helper.StartTimers)
 
         return app
@@ -118,15 +119,19 @@ class GUI():
         - Enables self.helper_graphics to be availble: Dict, contains all dynamic graphics
         """
 
+        # Call the helper to create the graphics
         self.helper_graphics = self.helper.CreateGraphics()
-        
+
+
         self.motion_plan = pn.Column(self.helper_graphics['Lidar'],pnp.Markdown("Mobile Base: No Path Planned",styles=self.styles['markdown_text_title'],align='center'),sizing_mode='stretch_both')
 
+        # Battery and paint levels are fixed for the time being, due to simulation
         self.battery_progress = pn.indicators.Progress(name='Battery Level',active=True,sizing_mode='stretch_width',bar_color='success',align='center')
         self.battery_progress.value = -1
 
         self.paint_indicator = pn.indicators.LinearGauge(name='Paint Levels',value=2.6,format='{value:.1f} kg',bounds=(0.7,25.4),colors=['red','gold','green'],horizontal=True,sizing_mode='stretch_width',align='center')
 
+        # Arrange the critical information
         self.critical_info = pn.Column(
             pnp.Markdown("**Critical Information**",styles=self.styles['markdown_text_title'],align='center'),
             pn.Row(pnp.Markdown("Battery",styles=self.styles['markdown_text_title'],align='center'),self.battery_progress,align='center'),
@@ -138,6 +143,7 @@ class GUI():
             height_policy="max"
         )
 
+        # Arrange the action home information
         self.action_home = self.helper_graphics["Actions_Mini"]
         self.action_home.insert(0,self.helper_graphics["Action_Progress"])
         self.action_home.insert(1,pnl.Divider())
@@ -296,8 +302,6 @@ class GUI():
         # Save as actions page
         self.pages["Actions"] = pn.Row(base,self.helper_graphics['Safety'])
 
-  
-
     def _OrganiseLoggingScreen(self):
         """
         _OrganiseLoggingScreen
@@ -379,6 +383,26 @@ class GUI():
             await function()
             await asyncio.sleep(interval)
 
+    def Notify(self,type:str,msg:str,time:int):
+        """
+        Notify
+        Method tto create panel notifications that appear on the UI
+
+        Arguments
+            - str : type || Type of message (info, warning, error, fatal, etc)
+            - str : msg || The message to be displayed
+            - int : time || How long to display the message for
+
+        Returns: N/A
+
+        """
+        if (type == 'Info'):
+            pn.state.notifications.info(msg,time)
+        elif (type == 'Warning'):
+            pn.state.notifications.warning(msg,time)
+        else:
+            pn.state.notifications.error(msg,time)
+
     def Log(self,msg,type):
         pass
 
@@ -413,7 +437,3 @@ if __name__ == "__main__":
 
     # Programmically serve the app
     pn.serve(app)
-
-
-
-# %%
