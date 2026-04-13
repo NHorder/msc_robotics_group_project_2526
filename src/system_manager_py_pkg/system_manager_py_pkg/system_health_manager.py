@@ -1,16 +1,19 @@
-################################
+                  ################################
 # system_health_manager.py
 # Part of the system_manager_py_pkg
 #
 # Author: Nathan Horder (nathan.horder.700@cranfield.ac.uk)
 # Part of Cranfield University MSC Robotics Group Project 2025-2026
 ################################
-
+#%%
 # Imports!
 import rclpy
 from rclpy.node import Node
 from enum import Enum
 from std_msgs.msg import String
+from rosgraph_msgs.msg import Clock
+from sensor_msgs.msg import Imu, LaserScan, Image
+from nav_msgs.msg import Odometry
 from diagnostic_msgs.msg import DiagnosticStatus,DiagnosticArray
 import numpy as np
 
@@ -67,6 +70,7 @@ class SystemHealthManager(Node):
         self.node_status["odom"] = Node_Status.NO_CONNECTION
         self.node_status['gui'] = Node_Status.NO_CONNECTION
         self.node_status['clock'] = Node_Status.NO_CONNECTION
+        self.node_status['lidar_processed'] = Node_Status.NO_CONNECTION
 
         # Health of systems
         self.systems_status = {}
@@ -82,19 +86,25 @@ class SystemHealthManager(Node):
         # Creation of subscribers
         # ## Not done yet, need more, awaiting completion of other modules 
         self.nodes = {}
-        self.nodes['clock']= self.create_subscription(String,'/clock',lambda msg: self._NodeHealth(msg, 'clock'),10)
+        self.node_prev = {}
+        self.nodes['clock']= self.create_subscription(Clock,'/clock',lambda msg: self._NodeHealth(msg, 'clock'),10)
 
-        self.nodes["camera"] = self.create_subscription(String,'/camera/image_raw',lambda msg: self._NodeHealth(msg, 'camera'),10)
-        self.nodes["lidar"]  = self.create_subscription(String,'/scan',lambda msg: self._NodeHealth(msg, 'lidar'),10)
-        self.nodes["imu"] = self.create_subscription(String,'/imu',lambda msg: self._NodeHealth(msg, 'imu'),10)
-        self.nodes["odom"] = self.create_subscription(String,'/wheel_odom',lambda msg: self._NodeHealth(msg, 'odom'),10)
-        self.nodes["gui"] = self.create_subscription(String,'/gui/actions',lambda msg: self._NodeHealth(msg, 'gui'),10)
+        self.nodes["camera"] = self.create_subscription(Image,'/camera/image_raw',lambda msg: self._NodeHealth(msg, 'camera'),10)
+        self.nodes["lidar"]  = self.create_subscription(LaserScan,'/scan',lambda msg: self._NodeHealth(msg, 'lidar'),10)
+        self.nodes["imu"] = self.create_subscription(Imu,'/imu',lambda msg: self._NodeHealth(msg, 'imu'),10)
+        self.nodes["odom"] = self.create_subscription(Odometry,'/wheel_odom',lambda msg: self._NodeHealth(msg, 'odom'),10)
+        self.nodes["gui"] = self.create_subscription(String,'/gui/action',lambda msg: self._NodeHealth(msg, 'gui'),10)
+        self.nodes["lidar_processed"] = self.create_subscription(LaserScan,'/processed/scan',lambda msg: self._NodeHealth(msg, 'lidar_processed'),10)
 
         # Periodically run SystemHealth checks
         self.timer = self.create_timer(0.5, self._SystemHealth)
         
         # Disable intialising
         self.initialising = False
+
+        # Set an inital data limitation, otherwise all systems will be marked as anomalous
+        self.data_loop_max = 15
+        self.data_loop = 0
 
         self.get_logger().info("System-Health-Manager: Running!")
 
@@ -110,35 +120,38 @@ class SystemHealthManager(Node):
 
         Returns: N/A
         """
-        
         # Due to setup, this is required, as all nodes will publish a message immedately on load
         # resulting in errors due to empty messages
         if self.initialising:
             return
 
         # IF the node is faulty, immediately throw errors and terminate current sequence
-        if self._NodeHealth[topic_key] == Node_Status.FAULTY:
+        if self.node_status[topic_key] == Node_Status.FAULTY:
             # Throw errors and notifications
             # Terminate current sequence     
             return
-        
         # Collect the msg time in sec and nanosec - both are required due to ROS 2 publishing speeds
-        timestamp = msg.header.stamp
-        time = timestamp.sec + timestamp.nanosec / 1e9
+        try:
+            timestamp = msg.header.stamp
+            time = timestamp.sec + timestamp.nanosec / 1e9
+        except:
+            time = 0
+        
 
         # Try to access the data - data may not be present at intial run
         try:
             previous_time = self.node_prev[topic_key][0]
             mean = self.node_prev[topic_key][1]
             std = self.node_prev[topic_key][2]
-            num_seen = self.node_prev[topic_key][2]
-            anomalous_readings = self.node_prev[topic_key][3]
+            sum_squares = self.node_prev[topic_key][3]
+            num_seen = self.node_prev[topic_key][4]
+            anomalous_readings = self.node_prev[topic_key][5]
         
         # Else add it to the dictionary as the first item
         except:
             # Add it to the dictionary - if it's not already present
-            # Time = time, mean = time, std = 0, num_seen = 1
-            self.node_prev[topic_key] = [time,time,0.5,1]
+            # Time = time, mean = time, std = 0,sum_squares = 0, num_seen = 1, anom_readings
+            self.node_prev[topic_key] = [time,time,1,0,1,0]
 
             # Terminate as it's the first run
             return
@@ -146,33 +159,38 @@ class SystemHealthManager(Node):
         # Determine difference in time
         delta_time = time - previous_time
 
-        # Determine if within range of mean and +3 stds
-        if (delta_time > mean+(3 * std)):
 
-            # If the new time difference exceeds known values signficantly, then it's anomalous
-            # Essentially marking it for something to keep an eye on
-            self._NodeHealth[topic_key] = Node_Status.ANOMALOUS
-            anomalous_readings +=  1
-            # Send warning notification
+        if self.data_loop >= self.data_loop_max:
+            # Determine if within range of mean and +3 stds
+            if (delta_time > mean+(3 * std)):
 
-            # If it's presented over fault_tolerance readings, then it's faulty.
-            if anomalous_readings > self.fault_tolerance:
-                self._NodeHealth[topic_key] = Node_Status.FAULTY
-                # Notify of fault
-                # Make request to slow down actions
+                # If the new time difference exceeds known values signficantly, then it's anomalous
+                # Essentially marking it for something to keep an eye on
+                self.node_status[topic_key] = Node_Status.ANOMALOUS
+                anomalous_readings +=  1
+                # Send warning notification
 
-            # NOTE: anomalous_readings is NOT RESET, as if it faults a number of times, something is wrong. It should not be ignored
-            #       hence, if it occurs often, it will be noticed faster
+                # If it's presented over fault_tolerance readings, then it's faulty.
+                if anomalous_readings > self.fault_tolerance:
+                    self.node_status[topic_key] = Node_Status.FAULTY
+                    # Notify of fault
+                    # Make request to slow down actions
 
-            # Update anomalous reading count - values not updated due to being anomalous, but anomalous counter is needed to achieve FAULTY node status
-            self.node_prev[topic_key][3] = anomalous_readings
+                # NOTE: anomalous_readings is NOT RESET, as if it faults a number of times, something is wrong. It should not be ignored
+                #       hence, if it occurs often, it will be noticed faster
 
-            # Return: Does not affect mean or std, given it's anomalous nature - it'll squew results otherwise
-            return
+                # Update anomalous reading count - values not updated due to being anomalous, but anomalous counter is needed to achieve FAULTY node status
+                self.node_prev[topic_key][3] = anomalous_readings
 
-        # Else it's fine
+                # Return: Does not affect mean or std, given it's anomalous nature - it'll squew results otherwise
+                return
+
+            # Else it's fine
+            else:
+                self.node_status[topic_key] = Node_Status.HEALTHY
         else:
-            self.node_status[topic_key] = Node_Status.HEALTHY
+            self.data_loop += 1
+
 
         # Update mean
         delta_mean = delta_time - mean 
@@ -184,7 +202,8 @@ class SystemHealthManager(Node):
         std_new = np.sqrt(var)
 
         # Update node
-        self.node_prev[topic_key] = [time,mean_new,std_new,num_seen+1,anomalous_readings]
+        self.node_prev[topic_key] = [time,mean_new,std_new,sum_squares,num_seen+1,anomalous_readings]
+
     
     def _SystemHealth(self):
         """
@@ -199,7 +218,7 @@ class SystemHealthManager(Node):
         self._SystemHealthCheck('GUI',['gui'])
 
         ## Mobile Base 
-        self._SystemHealthCheck('Mobile_Base',['imu','odom'])
+        self._SystemHealthCheck('Mobile_Base',['odom'])
 
         ## Manipualtor Arm
         #self._SystemHealthCheck('Manipulator_Arm') # All nodes of manipulator arm, input and output
@@ -208,7 +227,7 @@ class SystemHealthManager(Node):
         self._SystemHealthCheck('Visual_Sensor_Systems',['camera','lidar']) # And any other sensors
 
         ## Data Processing (package)
-        self._SystemHealthCheck('DataProcessing',['camera','lidar']) # And processed output nodes
+        self._SystemHealthCheck('DataProcessing',['lidar_processed']) # And processed output nodes
 
         ## Path Planning (package)
         #self._SystemHealthCheck('Path_Planning') # Base planning and manipulator arm following
@@ -240,35 +259,33 @@ class SystemHealthManager(Node):
         offline = 0
         num_nodes = len(nodes)
 
-
         # Loop through each node related to the system, and collect status
-        for node in nodes:
+        for node in nodes: 
             if self.node_status[node] == Node_Status.HEALTHY: health+=1
             elif self.node_status[node] == Node_Status.NO_CONNECTION: offline+1
             elif self.node_status[node] == Node_Status.ANOMALOUS: anom += 1
             else:
                 # If ANY node is Faulty, throw an immediate faulty error - it should not be acting
                 # All further actions should be blocked - and to stop the subscriber. 
-                self.systems_status[system] = Node_Status.FAULTY
+                self.systems_status[system] = [DiagnosticStatus.ERROR,'FATAL']
                 # Throw immediate faulty error
-                return
+                break
+
+        if system == 'Visual_Sensor_Systems' or system == 'Mobile_Base':
+            print(system,self.systems_status[system],health,anom,offline,num_nodes)
+            
 
         # If all nodes are healthy, then the system is healthy
         if num_nodes == health:
             self.systems_status[system] = [DiagnosticStatus.OK,'HEALTHY']
 
-        # If all nodes haven't sent any messages (Meaning no status change), then it's offline
-        # This is a warning, as it should be active once the system begins running. If it's not it's probably an issue
-        elif num_nodes == offline:
-            self.systems_status[system] = [DiagnosticStatus.WARN,'NO-CONNECTION']
-
         # If less than 25% of the nodes are anomlous, maintain system, mark as anomalous
-        elif (offline != 0) or (anom / num_nodes) <= 0.25:
+        elif (anom > 0 and (anom / num_nodes) <= 0.75 ):
             # Notify issue
             self.systems_status[system] = [DiagnosticStatus.WARN,'ANOMALOUS']
         
         # Otherwise, more than 25% of nodes are reporting anomalous at the SAME TIME, mark as faulty, begin shutdown procedures
-        else:
+        elif (anom > 0 and (anom / num_nodes) >= 0.75):
             # Update system to show faulty state
             self.systems_status[system] = [DiagnosticStatus.ERROR,'FATAL']
 
@@ -277,6 +294,11 @@ class SystemHealthManager(Node):
 
             # Send intruction to terminate and block further mobile base commands
             # Send notification of faulty node
+        
+        # If all nodes haven't sent any messages (Meaning no status change), then it's offline
+        # This is a warning, as it should be active once the system begins running. If it's not it's probably an issue
+        else:
+            self.systems_status[system] = [DiagnosticStatus.WARN,'NO-CONNECTION']
               
     def _Publish(self):
         """
@@ -330,5 +352,8 @@ def main(args=None):
         node.destroy_node()
         rclpy.shutdown()
 
+    return node
+
 if __name__ == '__main__':
     main()
+# %%

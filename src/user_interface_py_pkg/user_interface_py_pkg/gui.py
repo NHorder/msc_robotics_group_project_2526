@@ -296,18 +296,7 @@ class GUI():
         # Save as actions page
         self.pages["Actions"] = pn.Row(base,self.helper_graphics['Safety'])
 
-    def _OrganiseRobotInfoScreen(self):
-        """
-        _OrganiseRobotInfoScreen
-        Method to organise robot information
-
-        Arguments: N/A
-
-        Returns: N/A
-
-        NOTE: Incomplete
-        """
-        pass
+  
 
     def _OrganiseLoggingScreen(self):
         """
@@ -320,12 +309,9 @@ class GUI():
         Saves page to self.pages
         """
 
-        logging_info = pn.Column(pnp.Markdown("Critical Logging",styles=self.styles['markdown_text_title'],align='center'),pnw.Terminal("V.I.S.N.A.T Terminal",sizing_mode = 'stretch_both'))
-        logging_critical = pn.Column(pnp.Markdown("All Logging",styles=self.styles['markdown_text_title'],align='center'),pnw.Terminal("V.I.S.N.A.T Critical Terminal", sizing_mode = 'stretch_both'))
+        self.log_terminal = pnw.Terminal("V.I.S.N.A.T Terminal",sizing_mode = 'stretch_both')
 
-        logging_base = pn.Row(logging_critical,logging_info,self.helper_graphics['Safety'],sizing_mode='stretch_both')
-
-        self.pages["Logging"] = logging_base
+        self.pages["Logging"] = self.log_terminal
 
     def _OrganiseSideBar(self):
         """
@@ -342,7 +328,7 @@ class GUI():
 
         # Radio button for all available pages - could theoretically change the options to dict.keys
         # preventing users from accessing unfinished pages
-        radio_button = pnw.RadioButtonGroup(options=["Home","Actions","Motion","Robot Information","Logging","Legal Information"],orientation = 'vertical',button_type=self.styles['buttons'][0],button_style=self.styles['buttons'][1],sizing_mode="stretch_both")
+        radio_button = pnw.RadioButtonGroup(options=["Home","Actions","Motion","Logging","Legal Information"],orientation = 'vertical',button_type=self.styles['buttons'][0],button_style=self.styles['buttons'][1],sizing_mode="stretch_both")
 
         # Setup the column layout
         column = pn.Column(self.critical_info,pnl.Divider(),self.helper_graphics["Emergency_Commands"],pnl.Divider(),radio_button,sizing_mode="stretch_both")
@@ -393,6 +379,8 @@ class GUI():
             await function()
             await asyncio.sleep(interval)
 
+    def Log(self,msg,type):
+        pass
 
 def main(args=None):
     """
@@ -426,3 +414,6 @@ if __name__ == "__main__":
     # Programmically serve the app
     pn.serve(app)
 
+
+
+# %%

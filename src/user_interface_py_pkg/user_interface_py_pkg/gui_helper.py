@@ -178,11 +178,11 @@ class GUIHelper():
         """
         lidar_pipe = Pipe(data = [])
         task = asyncio.create_task(self.node_handler.GetDataAsync('Lidar',lidar_pipe))
-        lidar_dmap = hv.DynamicMap(hv.Scatter,streams=[lidar_pipe]).opts(responsive=True,color='black')
-        robot_loc = hv.Scatter([(0,0)],label='Robot Centre').opts(color='blue',marker='star',size=10)
+        self.lidar_dmap = hv.DynamicMap(hv.Scatter,streams=[lidar_pipe]).opts(responsive=True,color='black',shared_axes=False,tools=['hover'])
+        robot_loc = hv.Scatter([(0,0)],label='Robot Centre').opts(color='blue',marker='star',size=10,shared_axes=False,tools=['hover'])
         lidar_scatter = pnl.WidgetBox(
             pnp.Markdown("**2D LiDAR**",styles=self.styles['markdown_text_title']),
-            (lidar_dmap*robot_loc),sizing_mode='stretch_both')
+            (self.lidar_dmap*robot_loc),sizing_mode='stretch_both')
         
         return lidar_scatter
     
@@ -279,7 +279,7 @@ class GUIHelper():
         pipe = Pipe(data=[])
         task = asyncio.create_task(self.node_handler.GetDataAsync('Wall_Visual',pipe))
         # Create Dynamic map
-        dmap = hv.DynamicMap(self._CreateWallGraphicCallback,streams = [pipe]).opts(responsive=True)
+        dmap = hv.DynamicMap(self._CreateWallGraphicCallback,streams = [pipe]).opts(responsive=True,tools=['hover'])
 
         wall_graphic = pnl.WidgetBox(
             pnp.Markdown("**Room Walls**",styles=self.styles['markdown_text_title']),
@@ -310,25 +310,28 @@ class GUIHelper():
         except:
             pass
 
-        robot_loc = hv.Scatter([(0,0)],label='Robot Centre').opts(color='blue',marker='star',size=10)
+
+        robot_loc = hv.Scatter([(0,0)],kdims=['x','y'],label='Robot Centre').opts(color='blue',marker='star',size=10,aspect=None,tools=['hover'])
 
         if test and data.size > 0:
             overlay = hv.Overlay([
-                hv.Segments([[x,y,x1,y1]],
+                hv.Segments([[x,y,x1,y1,name]],
                     kdims=['x','y','x1','y1'],
+                    vdims=['Name'],
                     label=name
                 ).opts(
-                    color=hv.Cycle('Spectral'),
-                    line_width=4
+                    color=hv.Cycle('Muted'),
+                    line_width=4,
+                    tools=['hover'],
+                    hover_tooltips = ["Name"],
                 )
                 for x,y,x1,y1,name in data
             ]).opts(
-                tools=['hover'],
                 legend_position='right',
                 show_legend=True,
-                aspect='equal'
+                aspect=None,
+                tools=['hover'],
             )
-            
             return overlay * robot_loc
             
         else: 
