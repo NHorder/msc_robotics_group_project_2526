@@ -18,6 +18,7 @@ from panel import widgets as pnw
 pn.extension(notifications=True)
 pn.extension('terminal')
 hv.extension('bokeh')
+
  
 """
 GUIHelper
@@ -140,10 +141,12 @@ class GUIHelper():
 
         # If the msg is 'slow'
         elif msg == 'slow':
-
+            
             if (not self.safety_slow_added and self.action_handler.active_action != None):
                 # Update current progress
                 self.action_handler.progress[3].object = self.action_handler.progress[3].object + " (Slow)"
+
+                pn.state.notifications.warning(f'WARNING: Slowing all process speed, at least one entity is near the robot',duration=10000) # Retain notification for 10 seconds
 
                 # Prevent flickering visual
                 self.safety_slow_added = True
@@ -264,6 +267,20 @@ class GUIHelper():
                     continue
                 else:
                     self.system_health[idx].object = f"{keys[key_idx]} : {data[keys[key_idx]]}"
+
+                    match data[keys[key_idx]]:
+                        case "NO-CONNECTION":
+                            # Throw panel warning notification
+                            pn.state.notifications.warning(f'WARNING: Failed to establish connection to {keys[key_idx]}.',duration = 3000) # Retain notification for 3 seconds
+
+                        case "ANOMALOUS":
+                            # Throw panel warning notification
+                            pn.state.notifications.warning(f'WARNING: Inconsistiencies have been identified in: {keys[key_idx]}',duration=10000) # Retain notification for 10 seconds
+
+                        case "FATAL":
+                            # Throw panel warning notification
+                            pn.state.notifications.error(f'ERROR: {keys[key_idx]} is faulty.',duration=0) # Retain notificaiton until operator dismisses it
+                    
                     key_idx += 1
 
     def _CreateWallGraphic(self):
@@ -369,6 +386,7 @@ class GUIHelper():
 
         if (len(data) == 0):
             wall_options.append("No Walls Identified, please move to better position")
+            pn.state.notifications.warning(f'WARNING: No walls identified, please move to a better position then rescan',duration=10000)
 
         for item in data:
             wall_options.append(item[4]) # Item = [x0,y0,x1,y1,name,orientation]
@@ -463,6 +481,7 @@ class GUIHelper():
 
             # Call GUI to start action
             self.action_handler.PlayAction()
+            pn.state.notifications.info(f'INFO: Action has begun ',duration=3000)
 
         elif caller == 'Stop':
             # Hide stop button, present play button
@@ -474,8 +493,9 @@ class GUIHelper():
             
             # Call GUI to pause the action
             self.action_handler.PauseAction()
+            pn.state.notifications.info(f'INFO: Action has paused ',duration=3000)
 
-        elif caller == 'Skip' and len(self.action_handler.planned_actions) > 0:
+        elif caller == 'Skip' and len(self.action_handler.planned_actions) > 1:
             self.command_action_play_em.visible=True
             self.command_action_stop_em.visible = False
 
@@ -484,6 +504,7 @@ class GUIHelper():
             
             # Call GUI to move onto the next action
             self.action_handler.SkipAction()
+            pn.state.notifications.info(f'INFO: Action has been skipped ',duration=3000)
 
         elif caller == 'terminate':
             self.command_action_play_em.visible=True
@@ -503,6 +524,7 @@ class GUIHelper():
             
             # Call gui to start the next action
             self.gui.SkipAction()
+            pn.state.notifications.info(f'INFO: Action has completed',duration=3000)
 
         else:
             pass
