@@ -442,7 +442,7 @@ class GUIHelper():
             
         else: 
             # Return the robot location
-            return robot_loc
+            return hv.Overlay([]) * robot_loc
 
     def _CreateWallSelection(self):
         """
