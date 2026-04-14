@@ -4,7 +4,7 @@ package_name = 'user_interface_py_pkg'
 
 setup(
     name=package_name,
-    version='0.0.0',
+    version='1.0.0',
     packages=find_packages(exclude=['test']),
     data_files=[
         ('share/ament_index/resource_index/packages',
@@ -15,7 +15,7 @@ setup(
     zip_safe=True,
     maintainer='n_horder',
     maintainer_email='nathanhorder@gmail.com',
-    description='TODO: Package description',
+    description='This package contains a python implementation of a user interface using the Python Panels package and HoloViews for visual elements',
     license='TODO: License declaration',
     extras_require={
         'test': [

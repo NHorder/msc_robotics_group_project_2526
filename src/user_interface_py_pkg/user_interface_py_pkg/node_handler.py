@@ -8,11 +8,8 @@
 
 import rclpy
 from rclpy.node import Node
-import asyncio
 import json
-import yaml
 import numpy as np
-import cv2 as cv
 from holoviews.streams import Pipe
 from std_msgs.msg import String, Bool
 from diagnostic_msgs.msg import DiagnosticArray
@@ -91,7 +88,7 @@ class NodeHandler(Node):
             # Decode the message, save to subscriber_data
             self.subscriber_data[id] = self.decoder.DecodeMsg(msg,id)
 
-    async def GetDataAsync(self,id:String, gui_pipe: Pipe):
+    def GetDataAsync(self,id:String, gui_pipe: Pipe):
         """
         GetDataAsync (Public)
         Aync method for retrieving data from subscriber
@@ -106,15 +103,8 @@ class NodeHandler(Node):
 
         # Check if key is present
         if id in self.subscribers.keys():
-            
-            # Set a loop to send the data to the provided pipe
-            # Pipes are used by HoloViews visuals for streaming data
-            while True:
-                # Wait a second
-                await asyncio.sleep(1)
-
-                # Send data
-                gui_pipe.send(np.array(self.subscriber_data[id]))
+            # Send data
+            gui_pipe.send(np.array(self.subscriber_data[id]))
         else:
             # Throw warning
             pass

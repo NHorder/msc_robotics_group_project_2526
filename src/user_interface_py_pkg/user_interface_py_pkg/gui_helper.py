@@ -221,8 +221,9 @@ class GUIHelper():
         # Create pipe
         lidar_pipe = Pipe(data = [])
 
-        # Create ayncio (multi-thread path)
-        task = asyncio.create_task(self.node_handler.GetDataAsync('Lidar',lidar_pipe))
+        # Create multithread using panel as the main thread
+        pn.state.add_periodic_callback(self.node_handler.GetDataAsync('Lidar',lidar_pipe),250)
+
         
         # Create the dynamic map using the pipe - this allows streaming of live lidar to the scatter graphic
         self.lidar_dmap = hv.DynamicMap(hv.Scatter,streams=[lidar_pipe]).opts(responsive=True,color='black',shared_axes=False,tools=['hover'])
@@ -374,7 +375,7 @@ class GUIHelper():
         pipe = Pipe(data=[])
         
         # Create task to update the pipe
-        task = asyncio.create_task(self.node_handler.GetDataAsync('Wall_Visual',pipe))
+        pn.state.add_periodic_callback(self.node_handler.GetDataAsync('Wall_Visual',pipe),250)
 
         # Create Dynamic map
         dmap = hv.DynamicMap(self._CreateWallGraphicCallback,streams = [pipe]).opts(responsive=True,tools=['hover'])

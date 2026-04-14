@@ -9,7 +9,6 @@
 #%%
 # Imports!
 import rclpy
-import asyncio
 import holoviews as hv
 import panel as pn 
 import pandas as pd
@@ -64,7 +63,7 @@ class GUI():
         # Define pages
         self.pages = {}
 
-        self.timer = asyncio.create_task(self._PublishingLoop(0.5, self._PublishActiveAction))
+        pn.state.add_periodic_callback(self._PublishActiveAction,500)
 
     def RunApp(self):
         """
@@ -365,23 +364,7 @@ class GUI():
 
         """
         self.node_handler.Publish("Current_Action",self.action_handler.active_action)
-        
-    async def _PublishingLoop(self,interval, function):
-        """
-        _PublishingLoop
-        Method to create a asyncio loop to call function
-        Requires to be called on a thread
 
-        Arguments
-            - float : interval || How often to restart the loop
-            - func : function || Function to call on loop
-
-        Returns: N/A
-
-        """
-        while True:
-            await function()
-            await asyncio.sleep(interval)
 
     def Notify(self,type:str,msg:str,time:int):
         """
