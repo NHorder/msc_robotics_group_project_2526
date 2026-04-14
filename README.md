@@ -62,7 +62,6 @@ ROS2 Packages:
 - ros-humble-slam-toolbox
 - ros-humble-ros-gz
 
-
 Python packages can be installed using: pip install
 If miniforge or conda-forge (Package handlers) is already installed, create an environment using visnat_conda_env.yaml, then activate it. 
 Miniforge installation and activation: https://github.com/conda-forge/miniforge 
@@ -95,8 +94,8 @@ Simulation:
 
 User Interface:
 10) In Terminal 5: Navigate to UI package: cd user_interface_py_pkg/user_interface_py_pkg
-11) In Terminal 5: Ensure required packages are installed, or conda environment is created using visnat_conda_env.yaml
-12) In Terminal 5: Serve the UI: panel serve gui.py --dev
+11) In Terminal 5: Ensure required packages are installed, or conda environment is created using environment.yaml
+12) In Terminal 5: Serve the UI: python gui.py
 13) In Terminal 5: Load the UI in a browser: Copy-paste the printed URL into browser
 
 NOTE: If execution of step 6 fails, presenting an OGRE error within the output, run the commands below to force Gazebo to run using the CPU instead of the GPU:
