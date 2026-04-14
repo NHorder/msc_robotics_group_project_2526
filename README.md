@@ -74,9 +74,11 @@ User Interface:
 11) In Terminal 5: Ensure required packages are installed, or conda environment is created using environment.yaml (`conda create -f environment.yaml` (You can include `-n my_env_name` for custom environment name))
 12) In Terminal 5: Serve the UI: `python gui.py`
 13) In Terminal 5: Load the UI in a browser: Copy-paste the printed URL into browser
-- I.e ```
-$python gui.py
-Launching server at http://localhost:XXXX
+
+```
+# Example
+$python gui.py  # Starting the UI
+Launching server at http://localhost:XXXX  # XXXX will refer to a specific port
 ```
 
 NOTE: If execution of step 6 fails, presenting an OGRE error within the output, run the commands below to force Gazebo to run using the CPU instead of the GPU:
