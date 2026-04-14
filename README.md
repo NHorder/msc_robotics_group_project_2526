@@ -14,73 +14,6 @@ Main documents will be shared on teams (A folder may be present here at a later 
 - Clean up mistake commits before submission
 - Work with application lead if conflicts arise
 
-# ROS2 Topics
-
-## Sensor Topics
-Camera:
-
-/camera/compressedDepth
-
-/camera/image_raw
-
-/camera/image_raw/compressed
-
-/camera/theora
-
-/camera_info
-
-
-
-LiDAR:
-
-/scan
-
-/processed/scan
-
-
-## Motion
-/imu
-
-/wheel_odom
-
-/join_states
-
-/joy
-
-/joy/set_feedback
-
-/led
-
-## Motion Planning
-
-## User Interface
-/gui/action
-
-/system_health
-
-/wall/designation
-
-/wall/recalculate
-
-
-## Misc
-/safety
-
-/clock
-
-/parameter_events
-
-/robot_description
-
-/rosout
-
-/take_picture
-
-/tf
-
-/tf_static
-
-
 # Installation Guide
 Ubuntu-22.04
 
@@ -156,3 +89,69 @@ Academic Supervisors: Dr Gilbert Tang and Prof Phill Webb.
 # Additional Comments / Notes
 
 System Safety: A package that is not included as part of the system execution due to missing Entity identification class. Used to present a possible method for ensuring system safety
+
+# ROS2 Topics
+
+## Sensor Topics
+Camera:
+
+/camera/compressedDepth
+
+/camera/image_raw
+
+/camera/image_raw/compressed
+
+/camera/theora
+
+/camera_info
+
+
+
+LiDAR:
+
+/scan
+
+/processed/scan
+
+
+## Motion
+/imu
+
+/wheel_odom
+
+/join_states
+
+/joy
+
+/joy/set_feedback
+
+/led
+
+## Motion Planning
+
+## User Interface
+/gui/action
+
+/system_health
+
+/wall/designation
+
+/wall/recalculate
+
+
+## Misc
+/safety
+
+/clock
+
+/parameter_events
+
+/robot_description
+
+/rosout
+
+/take_picture
+
+/tf
+
+/tf_static
