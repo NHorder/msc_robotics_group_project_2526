@@ -6,7 +6,7 @@ from launch.substitutions import LaunchConfiguration
 
 def generate_launch_description():
 
-    default_path = '/home/ORT_QR'
+    default_path = './ORT_QR'
 
     return LaunchDescription([
 

@@ -315,7 +315,7 @@ def main(args=None):
         node.get_logger().info("Node interrupted by user.")
     finally:
         node.write_final_positions()
-        subprocess.run(["/usr/bin/python3", "ROS2_ws/src/wall_painting_robot/wall_painting_robot/emailer.py"]) # TODO: fix this path
+        #subprocess.run(["/usr/bin/python3", "ROS2_ws/src/wall_painting_robot/wall_painting_robot/emailer.py"]) # TODO: fix this path
         node.destroy_node()
 
 if __name__ == '__main__':
