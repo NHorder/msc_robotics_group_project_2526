@@ -687,7 +687,7 @@ class GUIHelper():
             # Notify of completion, load next action
             
             # Call gui to start the next action
-            self.gui.SkipAction()
+            self.action_handler.SkipAction()
             self.gui.Notify(type="Info",msg=f'INFO: Action has completed',time=3000)
 
         else:

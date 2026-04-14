@@ -404,7 +404,7 @@ class ActionHandler():
         self.progress[3] = pnp.Markdown("Progress: N/A",styles = self.styles['markdown_text_reg'],align='center')
 
         # Update visual of following action
-        self.UpdateFirstAction()
+        self._UpdateFirstItem()
 
 
     def PlayAction(self):
@@ -481,6 +481,11 @@ class ActionHandler():
         self.active_action = None
         # Clear list
         self.planned_actions.clear()
+
+        self._UpdateFirstItem()
+        self._UpdateMovedItem()
+        self._UpdateOptions()
+        self._UpdateMinimalGraphicsList()
 
         # Set no action selected
         self.progress[1] = pnp.Markdown("No Action Selection",styles = self.styles['markdown_text_reg'],align='center')
