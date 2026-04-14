@@ -1,6 +1,8 @@
 # msc_robotics_group_project_2526
 # Introduction
-MSC Robotics Group Project 2025-2026.  
+MSC Robotics Group Project 2025-2026
+
+Project Duration: 20th Feb - 27th Apr
 
 Title: Mobile Manipulators in Housing Construction  
 
@@ -26,7 +28,6 @@ ROS2 packages can be installed using the command: sudo apt install
 
 
 ROS2 Packages:
-
 - ros-humble-slam-toolbox
 - ros-humble-ros-gz
 
@@ -37,7 +38,10 @@ If miniforge or conda-forge (Package handlers) is already installed, create an e
 Miniforge installation and activation: https://github.com/conda-forge/miniforge 
 
 Python Packages:
-- 
+- numpy : Version <2
+- HoloViews : Lastest version
+- Panel : Latest version
+- jupyter_bokeh : Latest version
 
 
 ## System Execution
@@ -55,7 +59,7 @@ ROS2 Nodes:
 
 Simulation:
 
-6) In Terminal 2: Launch simulation: `ros2 launch wall_painting_robot simulation.launch.py (Terminal 2)`
+6) In Terminal 2: Launch simulation: `ros2 launch wall_painting_robot simulation.launch.py`
 7) In Terminal 3: Launch SLAM toolbox: `ros2 launch slam_toolbox online_async_launch.py use_sim_time:=true slam_params_file:=./src/wall_painting_robot/config/slam_toolbox.yaml`
 8) In Terminal 4: Load RVIZ2:  `rviz2`
 9) In Terminal 4: Add to RVIZ2:
@@ -66,10 +70,14 @@ Simulation:
 
 User Interface:
 
-10) In Terminal 5: Navigate to UI package: cd user_interface_py_pkg/user_interface_py_pkg
+10) In Terminal 5: Navigate to UI package: `cd src/user_interface_py_pkg/user_interface_py_pkg`
 11) In Terminal 5: Ensure required packages are installed, or conda environment is created using environment.yaml (`conda create -f environment.yaml` (You can include `-n my_env_name` for custom environment name))
 12) In Terminal 5: Serve the UI: `python gui.py`
 13) In Terminal 5: Load the UI in a browser: Copy-paste the printed URL into browser
+- I.e ```
+$python gui.py
+Launching server at http://localhost:XXXX
+```
 
 NOTE: If execution of step 6 fails, presenting an OGRE error within the output, run the commands below to force Gazebo to run using the CPU instead of the GPU:
 
@@ -82,9 +90,18 @@ export MESA_LOADER_DRIVER_OVERRIDE=llvmpipe
 The OGRE error relates to the execution of the simulation using the GPU, hence forcing it run to CPU may solve the problem.
 
 # Who is involved:
-Developers / Students: Sébastien Dubois, Alma Toleubekova, Nathan Horder, Tanish Ganesh Dahiwal and Viksit Sachdeva.
+Developers / Students: 
+- Viksit Sachdeva (Project Manager, System Architect and Integrator)
+- Sébastien Dubois (Manipulator & Kinematics Lead)
+- Tanish Ganesh Dahiwal (Mobilty, Navigation and Control Lead)
+- Alma Toleubekova (Simulation & Validation Lead)
+- Nathan Horder (Perception & UI/UX Lead)
 
-Academic Supervisors: Dr Gilbert Tang and Prof Phill Webb.
+
+
+Academic Supervisors: 
+- Dr Gilbert Tang
+- Prof Phill Webb
 
 # Additional Comments / Notes
 
