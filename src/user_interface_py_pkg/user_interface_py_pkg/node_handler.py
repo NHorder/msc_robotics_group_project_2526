@@ -109,7 +109,6 @@ class NodeHandler(Node):
             # Throw warning
             pass
     
-
     def GetData(self,id:String):
         """
         GetData (Public)

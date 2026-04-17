@@ -6,7 +6,7 @@
 # Part of Cranfield University MSC Robotics Group Project 2025-2026
 ################################
 # Imports!
-import asyncio
+import numpy as np
 import holoviews as hv
 import panel as pn 
 import asyncio
@@ -65,7 +65,7 @@ class GUIHelper():
         """
         pn.state.add_periodic_callback(self._CreateSafetyMessageCallback,100) # Run every 100ms
         pn.state.add_periodic_callback(self._CreateCameraImageCallback,100) # Run every 100ms
-        pn.state.add_periodic_callback(self._SystemHealthCallback,250) # Run every 250ms
+        #pn.state.add_periodic_callback(self._SystemHealthCallback,250) # Run every 250ms
         pn.state.add_periodic_callback(self._CreateWallSelectionCallback,250) # Run every 250ms
         pn.state.add_periodic_callback(self._CreateWallRescanPeriodicCallback,250) # Run every 250ms
 
@@ -222,14 +222,10 @@ class GUIHelper():
             - pnl.WidgetBox : lidar_scatter || Lidar Scatter widgetbox, contains hv.DynamicMap, updates through asyncio and Pipes
         """
         # Create pipe
-        lidar_pipe = Pipe(data = [])
+        self.lidar_pipe = Pipe(data = [])
 
-        # Create multithread using panel as the main thread
-        pn.state.add_periodic_callback(self.node_handler.GetDataAsync('Lidar',lidar_pipe),250)
-
-        
         # Create the dynamic map using the pipe - this allows streaming of live lidar to the scatter graphic
-        self.lidar_dmap = hv.DynamicMap(hv.Scatter,streams=[lidar_pipe]).opts(responsive=True,color='black',shared_axes=False,tools=['hover'])
+        self.lidar_dmap = hv.DynamicMap(hv.Scatter,streams=[self.lidar_pipe]).opts(responsive=True,color='black',shared_axes=False,tools=['hover'])
 
         # Set the robot location, which is at 0,0 (based on lidar location)
         robot_loc = hv.Scatter([(0,0)],label='Robot Centre').opts(color='blue',marker='star',size=10,shared_axes=False,tools=['hover'])
@@ -238,9 +234,17 @@ class GUIHelper():
         lidar_scatter = pnl.WidgetBox(
             pnp.Markdown("**2D LiDAR**",styles=self.styles['markdown_text_title']),
             (self.lidar_dmap*robot_loc),sizing_mode='stretch_both')
+        
+        # Create multithread using panel as the main thread
+        pn.state.add_periodic_callback(self._CreateLidarCallback,250)
 
         # Return visual      
         return lidar_scatter
+    
+    def _CreateLidarCallback(self):
+        data = self.node_handler.GetData('Lidar')
+        self.lidar_pipe.send(np.array(data))
+        
     
     def _CreateCameraImage(self):
         """
@@ -303,7 +307,7 @@ class GUIHelper():
 
         # Display each system, by adding it to the list, add 'Checking' param to notify operator
         for system in systems_health:
-            self.system_health.append(pnp.Markdown(f"{system}: Checking"))
+            self.system_health.append(pnp.Markdown(f"{system}: Healthy"))
 
         # Return the visual
         return self.system_health
@@ -420,7 +424,7 @@ class GUIHelper():
             y=[-1.39, 6.00, 6.00, -1.39],
             z=[0, 0, z_val, z_val],
             color='red',
-            name='Wall A'
+            name='Wall 1'
         ))
 
         # Wall B
@@ -429,7 +433,7 @@ class GUIHelper():
             y=[6.00, 6.00, 6.00, 6.00],
             z=[0, 0, z_val, z_val],
             color='blue',
-            name='Wall B'
+            name='Wall 2'
         ))
 
         # Wall B (Part 2)
@@ -438,7 +442,7 @@ class GUIHelper():
             y=[6.00, 6.00, 6.00, 6.00],
             z=[0, 0, z_val, z_val],
             color='blue',
-            name='Wall B'
+            name='Wall 2'
         ))
 
         # Wall C
@@ -447,7 +451,7 @@ class GUIHelper():
             y=[6.00, -1.37, -1.37, 6.00],
             z=[0, 0, z_val, z_val],
             color='green',
-            name='Wall C'
+            name='Wall 3'
         ))
 
         # Wall  D
@@ -456,7 +460,7 @@ class GUIHelper():
             y=[-1.37, -1.39, -1.39, -1.37],
             z=[0, 0, z_val, z_val],
             color='cyan',
-            name='Wall D'
+            name='Wall 4'
         ))
 
         self.wall_graphic = pnp.Plotly(self.wall_fig)

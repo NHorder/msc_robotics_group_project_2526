@@ -420,6 +420,3 @@ if __name__ == "__main__":
 
     # Programmically serve the app
     pn.serve(app)
-
-# %%
-# %%
