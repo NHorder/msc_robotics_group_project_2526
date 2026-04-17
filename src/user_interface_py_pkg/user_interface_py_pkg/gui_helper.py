@@ -15,9 +15,11 @@ from holoviews.streams import Pipe
 from panel import pane as pnp
 from panel import layout as pnl
 from panel import widgets as pnw
+import plotly.graph_objects as go
 pn.extension(notifications=True)
 pn.extension('terminal')
 hv.extension('bokeh')
+pn.extension("plotly")
 
  
 """
@@ -87,6 +89,7 @@ class GUIHelper():
         self.graphics["SystemHealth"] = self._CreateSystemHealth()
         self.graphics["Wall_Visual"] = self._CreateWallGraphic()
         self.graphics["Wall_Selection"]= self._CreateWallSelection()
+        self.graphics["Manipulator_Motion"] = self._CreateManipulatorPlot()
         self.graphics["Rescan"] = self._CreateWallRescan()
         self.graphics["Emergency_Commands"] = self._CreateCommandsEm()
         self.graphics["Commands"] = self._CreateCommands()
@@ -372,22 +375,94 @@ class GUIHelper():
 
         """
         # Create pipe for streaming data
-        pipe = Pipe(data=[])
+        # pipe = Pipe(data=[])
         
-        # Create task to update the pipe
-        pn.state.add_periodic_callback(self.node_handler.GetDataAsync('Wall_Visual',pipe),250)
+        # # Create task to update the pipe
+        # pn.state.add_periodic_callback(self.node_handler.GetDataAsync('Wall_Visual',pipe),250)
 
-        # Create Dynamic map
-        dmap = hv.DynamicMap(self._CreateWallGraphicCallback,streams = [pipe]).opts(responsive=True,tools=['hover'])
+        # # Create Dynamic map
+        # dmap = hv.DynamicMap(self._CreateWallGraphicCallback,streams = [pipe]).opts(responsive=True,tools=['hover'])
 
-        # Create the graphic
-        wall_graphic = pnl.WidgetBox(
-            pnp.Markdown("**Room Walls**",styles=self.styles['markdown_text_title']),
-            (dmap), sizing_mode = 'stretch_both'
-        )
-        
+        # # Create the graphic
+        # wall_graphic = pnl.WidgetBox(
+        #     pnp.Markdown("**Room Walls**",styles=self.styles['markdown_text_title']),
+        #     (dmap), sizing_mode = 'stretch_both'
+        # )
+
+
+        def make_wall(x, y, z, color, name):
+            return go.Mesh3d(
+                x=x, y=y, z=z,
+                i=[0, 0], j=[1, 2], k=[2, 3],
+                color=color,
+                opacity=0.3,
+                name=name,          
+                showlegend=True
+            )
+
+        import numpy as np
+        self.wall_fig = go.Figure()
+
+        z_val = 3.048 
+
+        # Floor
+        self.wall_fig.add_trace(make_wall(
+            x=[-1.00, -1.00, 8.74, 8.80],
+            y=[-1.39, 6.00, 6.00, -1.39],
+            z=[0, 0, 0, 0],
+            color='gray',
+            name='Floor'
+        ))
+
+        # Wall A
+        self.wall_fig.add_trace(make_wall(
+            x=[-1.00, -1.00, -1.00, -1.00],
+            y=[-1.39, 6.00, 6.00, -1.39],
+            z=[0, 0, z_val, z_val],
+            color='red',
+            name='Wall A'
+        ))
+
+        # Wall B
+        self.wall_fig.add_trace(make_wall(
+            x=[-1.00, 5.50, 5.50, -1.00],
+            y=[6.00, 6.00, 6.00, 6.00],
+            z=[0, 0, z_val, z_val],
+            color='blue',
+            name='Wall B'
+        ))
+
+        # Wall B (Part 2)
+        self.wall_fig.add_trace(make_wall(
+            x=[7.16, 8.74, 8.74, 7.16],
+            y=[6.00, 6.00, 6.00, 6.00],
+            z=[0, 0, z_val, z_val],
+            color='blue',
+            name='Wall B'
+        ))
+
+        # Wall C
+        self.wall_fig.add_trace(make_wall(
+            x=[8.74, 8.80, 8.80, 8.74],
+            y=[6.00, -1.37, -1.37, 6.00],
+            z=[0, 0, z_val, z_val],
+            color='green',
+            name='Wall C'
+        ))
+
+        # Wall  D
+        self.wall_fig.add_trace(make_wall(
+            x=[8.80, -1.00, -1.00, 8.80],
+            y=[-1.37, -1.39, -1.39, -1.37],
+            z=[0, 0, z_val, z_val],
+            color='cyan',
+            name='Wall D'
+        ))
+
+        self.wall_graphic = pnp.Plotly(self.wall_fig)
+
         # Return the graphic
-        return wall_graphic
+        return  self.wall_graphic
     
     def _CreateWallGraphicCallback(self,data):
         """
@@ -549,6 +624,29 @@ class GUIHelper():
         # we don't want that single call to repeatedly rescan - only once
         self.node_handler.Publish('Rescan',False)
 
+    def _CreateManipulatorPlot(self):
+        self.manipulator_figure = go.Figure()
+
+        x = [0.710]
+        y = [ 0.0]
+        z = [ 0.400]
+
+        self.manipulator_figure.add_trace(go.Scatter3d(
+                x=x,
+                y=y,
+                z=z,
+                marker=dict(size=3, color='darkblue'),
+                line=dict(color='blue',width=2),
+                name='Home Position'
+        ))
+
+        self.manipulator_graphic = pnp.Plotly(self.manipulator_figure)
+
+        # Return the graphic
+        return  self.manipulator_graphic
+
+
+
     def _CreateCommandsEm(self):
         """
         _CreateCommandsEm (Private)
@@ -643,6 +741,30 @@ class GUIHelper():
 
             self.command_action_play.visible = False
             self.command_action_stop.visible = True
+
+            
+            # Planned motion locations (ONLY FOR DEMONSTRATION, would need to actually connect the whole thing together)
+            self.wall_fig.add_trace(go.Scatter3d(
+                x=[-0.2500, -0.2500, -0.2500, -0.2500, -0.2500, -0.2500, -0.2500, -0.2500],
+                y=[-0.8900, 0.1100, 1.1100, 2.1100, 3.1100, 4.1100, 5.1100, 5.5000],
+                z=[0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2],
+                mode='markers',
+                marker=dict(size=3, color='red'),
+                name='Points'
+            ))
+
+            # Planned manipulator motion (ONLY FOR DEMONSTRATION, would need to actually connect the whole thing together)
+            x = [ 0.7105,0.740,0.750, 0.750,  0.740,  0.740,  0.750,  0.750,  0.740,  0.740,  0.750,  0.750, 0.740,  0.740,  0.750,  0.750, 0.750,0.740,  0.740,  0.750,  0.750,0.750, 0.740,  0.7105]
+            y = [ 0.0, 0.3657, 0.3657,0.3657,0.3657, 0.18285,0.18285,0.18285,  0.18285, 0.0, 0.0, 0.0, 0.0,-0.18285,-0.18285,-0.18285, -0.18285, -0.18285, -0.3657, -0.3657,  -0.3657,-0.3657, -0.3657, 0.0,  ]
+            z = [ 0.4000, 2.640, 2.640,  0.160,  0.160,  0.160,  0.160, 2.640, 2.640, 2.640, 2.640,  0.160, 0.160, 0.160,  0.160,  0.160, 2.640,2.640, 2.640, 2.640, 2.640,  0.160, 0.160, 0.160,  0.400,]
+            self.manipulator_figure.add_trace(go.Scatter3d(
+                            x=x,
+                            y=y,
+                            z=z,
+                            marker=dict(size=3, color='darkblue'),
+                            line=dict(color='blue',width=2),
+                            name='Points'
+                        ))
 
             # Call GUI to start action
             self.action_handler.PlayAction()

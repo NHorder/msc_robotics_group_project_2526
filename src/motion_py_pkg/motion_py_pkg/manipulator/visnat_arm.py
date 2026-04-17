@@ -153,6 +153,13 @@ def visnat_arm(top_l, bot_r):
     plt.tight_layout()
     plt.show()
 
+    print(pos_path[0,:])
+    print("\n")
+    print(pos_path[1,:])
+    print("\n")
+    print(pos_path[2,:])
+    print("\n\n")
+
     # -----------------------------------------------------------------------
     # Interpolate path: generate dense target positions
     # -----------------------------------------------------------------------

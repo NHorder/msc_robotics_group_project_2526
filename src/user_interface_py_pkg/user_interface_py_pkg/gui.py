@@ -168,7 +168,7 @@ class GUI():
 
         base[3:5,2:5] =  self.helper_graphics["Actions_Mini"] # Current progress, current instruction, entities nearby, next insntruction, pause, skip and stop buttons
 
-        base[3:5,5:8] =  self.helper_graphics['Camera'] # Manipualtor arm motion plan
+        base[3:5,5:8] =  self.helper_graphics['Manipulator_Motion'] # Manipualtor arm motion plan
 
         base[0:2,8:12] =  self.helper_graphics['Camera'] # RGB Camera
 
@@ -225,7 +225,7 @@ class GUI():
             pnp.Markdown("Bottom plate: Aluminium",styles=self.styles['markdown_text_reg']),
             scroll = True
         )
-        robot_base[0:4,2:6] = self.motion_plan # Motion Plan
+        robot_base[0:4,2:6] = self.helper_graphics['Wall_Visual'] # Motion Plan
         robot_base[0:4,6:10] = self.helper_graphics['Lidar'] # LiDAR
         robot_base[4:6,2:6] = self.action_home #Instruction information
         robot_base[4:6,6:8] = self.helper_graphics["Emergency_Commands"] # Pause and stop 
@@ -257,7 +257,7 @@ class GUI():
             pnp.Markdown("Joint 5 || Min: -40 deg, Max: +40 deg",styles=self.styles['markdown_text_reg']),
             scroll = True
         ) 
-        manipulator_arm[0:4,2:6] = self.helper_graphics['Camera'] # Manipulator Plan
+        manipulator_arm[0:4,2:6] = self.helper_graphics['Manipulator_Motion'] # Manipulator Plan
         manipulator_arm[0:4,6:10] = self.helper_graphics['Camera'] # Camera
         manipulator_arm[4:6,2:6] = self.action_home # Instruction information
         manipulator_arm[4:6,6:8] = self.helper_graphics["Emergency_Commands"] # Pause and stop 
@@ -420,3 +420,6 @@ if __name__ == "__main__":
 
     # Programmically serve the app
     pn.serve(app)
+
+# %%
+# %%
