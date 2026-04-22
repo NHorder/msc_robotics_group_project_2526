@@ -331,6 +331,8 @@ class LidarProcessing(Node):
 
         self._calculate_walls = True
 
+        self.range_diff_thd = 0.2 # If the distance between two lidar scans is more than 0.2 meters, then its probably anomalous 
+
         self.subscriber = self.create_subscription(LaserScan,'/scan',self._Process,10)
         self.subscriber_wall = self.create_subscription(Bool,'/wall/recalculate',self._Recalculate,10) # Will need someone to determine room dimensions, if room dimensions change, then rescan for walls
         self.publisher_wall_designation = self.create_publisher(String,'/wall/designation',10)
@@ -437,18 +439,27 @@ class LidarProcessing(Node):
             - tuple : (pd.DataFrame:df, list: points) || Returns a modified argument DataFrame and a list of (x,y) coordinate points each range (and bearing) correspond to
         """
 
-        # Identify mean and standard deviation, set all values above mean + 3std to nan 
+        # Identify loacl mean and standard deviation, set all values above mean + 3std to nan 
         # (All values over 99.7% of the data spread, assumes normal distribution)
-        mean = np.mean(df['ranges'])
-        std = np.std(df['ranges'])
-        df[df['ranges'] > mean + (3*std)] = np.nan
-
-        # Identify mean and standard deviations, set threshold at mean + 3std, anything above that set to nan
-        # Same as previous section, except on a smaller 'local' scale, involving 5 units either side of the point
         df['rolling_mean'] = df['ranges'].rolling(11,1,True).mean()
         df['rolling_std'] = df['ranges'].rolling(11,1,True).std()
         df['thd'] = df['rolling_mean'] + 3 * df['rolling_std']
-        df.loc[df['ranges'] > df['thd'],'ranges'] = np.nan
+        df['statistic_outlier'] = df['ranges'] > df['thd']
+
+        # Shift left values left and right by 1 place. 
+        df['shift_left'] = df["ranges"].shift(1)
+        df['shift_right'] = df["ranges"].shift(-1)
+
+        # Determine outliers by checking the points left and right of the point under investigation
+        df['geometry_outliers'] = ( 
+            ((df['ranges'] - df['shift_left']).abs() > self.range_diff_thd) & 
+            ((df['ranges'] - df['shift_right']).abs() > self.range_diff_thd)
+        )
+        
+        # If a point is marked as both a geometric outlier and a statistical outlier, set it's value to nan
+        # Note: Cannot 'remove' point, as decoding of the message later on will have issues related to angles
+        #       as angles are only provided as a min, increment and max. Not one-to-one for range.
+        df.loc[df['geometry_outliers'] & df['statistic_outlier'],'ranges'] = np.nan
         
         # Call display and discard the graph, retain the points (x,y) positions
         points = self.wall_algorithm.Display(df)

@@ -399,6 +399,8 @@ def main(args=None):
         Returns: N/A
 
         """
+    # Initialise RCLPY, for NodeHandler execution
+    rclpy.init()
     
     # Create GUI class
     gui = GUI()
@@ -409,14 +411,4 @@ def main(args=None):
 #%%
 # Activation!
 if __name__ == "__main__":
-
-    rclpy.init()
-
-    # Create GUI class
-    gui = GUI(True)
-
-    # Get and create the app
-    app = gui.RunApp()
-
-    # Programmically serve the app
-    pn.serve(app)
+    main()
