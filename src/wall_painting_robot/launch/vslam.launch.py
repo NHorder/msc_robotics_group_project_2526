@@ -24,7 +24,8 @@ def generate_launch_description():
                 'show_viewer': False
             }],
             remappings=[
-                ('/image_raw', '/camera/image_raw'),  # Camera topic
+                ('/image_raw', '/camera/image_raw'),
+        	('/camera_info', '/camera/camera_info'),
             ],
         )
 ])

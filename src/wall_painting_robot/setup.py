@@ -12,6 +12,8 @@ data_files=[
         ('share/' + package_name, ['package.xml']),
         (os.path.join('share', package_name, 'launch'), glob('launch/*.*')),
         (os.path.join('lib', package_name, 'include'), glob('wall_painting_robot/include/*.*')),
+        (os.path.join('share', package_name, 'urdf'), glob('urdf/*.urdf') + glob('urdf/*.xacro')),
+        (os.path.join('share', package_name, 'config'), glob('config/*')),
     ]
 
 # This custom funciton allows us to recursively copy all the files in the folders to the install directory
@@ -47,15 +49,21 @@ setup(
     license='TODO: License declaration',
     tests_require=['pytest'],
     entry_points={
-        'console_scripts': [
-            'webcam = wall_painting_robot.webcam:main',
-            'qr_code_detection = wall_painting_robot.qr_code_detection:main',
-            'feature_detection = wall_painting_robot.feature_detection:main',
-            'robot_monitor = wall_painting_robot.robot_monitor:main',
-            'joystick_commands = wall_painting_robot.joystick_commands:main',
-            'picam = wall_painting_robot.picam:main',
-            'odom_tf_publish = wall_painting_robot.odom_tf_publish:main',
-            'odom_to_tf = wall_painting_robot.odom_to_tf:main'
-        ],
+    'console_scripts': [
+        'webcam = wall_painting_robot.webcam:main',
+        'qr_code_detection = wall_painting_robot.qr_code_detection:main',
+        'feature_detection = wall_painting_robot.feature_detection:main',
+        'robot_monitor = wall_painting_robot.robot_monitor:main',
+        'joystick_commands = wall_painting_robot.joystick_commands:main',
+        'picam = wall_painting_robot.picam:main',
+        'odom_tf_publish = wall_painting_robot.odom_tf_publish:main',
+        'odom_to_tf = wall_painting_robot.odom_to_tf:main',
+        'wall_detector = wall_painting_robot.wall_detector:main',
+        'wall_selector = wall_painting_robot.wall_selector:main',
+        'wall_painter = wall_painting_robot.wall_painter:main',
+        'simple_navigator = wall_painting_robot.simple_navigator:main',
+        'cartesian_painter = wall_painting_robot.cartesian_painter:main',
+        'trajectory_bridge = wall_painting_robot.trajectory_bridge:main',
+    	],
     },
 )
