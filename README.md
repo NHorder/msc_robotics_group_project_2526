@@ -10,13 +10,12 @@ Project Duration: 20th Feb - 27th Apr
 
 
 # Who is involved:
-Developers / Students: 
+Developers: 
 - Viksit Sachdeva (Project Manager, System Architect and Integrator)
 - Sébastien Dubois (Manipulator & Kinematics Lead)
 - Tanish Ganesh Dahiwal (Mobilty, Navigation and Control Lead)
 - Alma Toleubekova (Simulation & Validation Lead)
 - Nathan Horder (Perception & UI/UX Lead)
-
 
 
 Academic Supervisors: 
