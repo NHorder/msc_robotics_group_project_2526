@@ -16,7 +16,7 @@ function TH = Inverse(MDH, Base, Target, Disp, name)
 %	- TH: Vector of all the Theta values
 %
 % author: Sébastien Dubois, s.j.dubois.116@cranfield.ac.uk
-% date: 29/03/2026
+% date: 02/04/2025
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Extract the UR dimentions from its MDH table
