@@ -93,7 +93,7 @@ class SystemHealthManager(Node):
         self.nodes["camera"] = self.create_subscription(Image,'/camera/image_raw',lambda msg: self._NodeHealth(msg, 'camera'),10)
         self.nodes["lidar"]  = self.create_subscription(LaserScan,'/scan',lambda msg: self._NodeHealth(msg, 'lidar'),10)
         self.nodes["imu"] = self.create_subscription(Imu,'/imu',lambda msg: self._NodeHealth(msg, 'imu'),10)
-        self.nodes["odom"] = self.create_subscription(Odometry,'/wheel_odom',lambda msg: self._NodeHealth(msg, 'odom'),10)
+        self.nodes["odom"] = self.create_subscription(Odometry,'/odom',lambda msg: self._NodeHealth(msg, 'odom'),10)
         self.nodes["gui"] = self.create_subscription(String,'/gui/action',lambda msg: self._NodeHealth(msg, 'gui'),10)
         self.nodes["lidar_processed"] = self.create_subscription(LaserScan,'/processed/scan',lambda msg: self._NodeHealth(msg, 'lidar_processed'),10)
 

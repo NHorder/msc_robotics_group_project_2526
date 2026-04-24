@@ -9,25 +9,20 @@ class OdomToTF(Node):
     def __init__(self):
         super().__init__('odom_to_tf_broadcaster')
         self.br = TransformBroadcaster(self)
+        # Bridge publishes odometry directly to /odom
         self.sub = self.create_subscription(
-            Odometry,
-            '/wheel_odom',
-            self.odom_callback,
-            10
-        )
+            Odometry, '/odom', self.odom_callback, 10)
+        self.get_logger().info('odom_to_tf: /odom → TF odom→base_footprint')
 
     def odom_callback(self, msg: Odometry) -> None:
         t = TransformStamped()
-        t.header.stamp = msg.header.stamp
-        t.header.frame_id = msg.header.frame_id
-        t.child_frame_id = msg.child_frame_id
-
+        t.header.stamp    = msg.header.stamp
+        t.header.frame_id = 'odom'
+        t.child_frame_id  = 'base_footprint'
         t.transform.translation.x = msg.pose.pose.position.x
         t.transform.translation.y = msg.pose.pose.position.y
-        t.transform.translation.z = msg.pose.pose.position.z
-
-        t.transform.rotation = msg.pose.pose.orientation
-
+        t.transform.translation.z = 0.0
+        t.transform.rotation      = msg.pose.pose.orientation
         self.br.sendTransform(t)
 
 
