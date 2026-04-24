@@ -2,12 +2,28 @@
 # Introduction
 MSC Robotics Group Project 2025-2026
 
+Undertaken at Cranfield Univeristy, Uk
+
 Project Duration: 20th Feb - 27th Apr
 
 Title: Mobile Manipulators in Housing Construction  
 
 
 Main documents will be shared on teams (A folder may be present here at a later date)  
+
+# Who is involved:
+Developers / Students: 
+- Viksit Sachdeva (Project Manager, System Architect and Integrator)
+- Sébastien Dubois (Manipulator & Kinematics Lead)
+- Tanish Ganesh Dahiwal (Mobilty, Navigation and Control Lead)
+- Alma Toleubekova (Simulation & Validation Lead)
+- Nathan Horder (Perception & UI/UX Lead)
+
+
+
+Academic Supervisors: 
+- Dr Gilbert Tang
+- Prof Phill Webb
 
 
 # Contribution Guidlines
@@ -90,20 +106,6 @@ export MESA_LOADER_DRIVER_OVERRIDE=llvmpipe
 ```
 
 The OGRE error relates to the execution of the simulation using the GPU, hence forcing it run to CPU may solve the problem.
-
-# Who is involved:
-Developers / Students: 
-- Viksit Sachdeva (Project Manager, System Architect and Integrator)
-- Sébastien Dubois (Manipulator & Kinematics Lead)
-- Tanish Ganesh Dahiwal (Mobilty, Navigation and Control Lead)
-- Alma Toleubekova (Simulation & Validation Lead)
-- Nathan Horder (Perception & UI/UX Lead)
-
-
-
-Academic Supervisors: 
-- Dr Gilbert Tang
-- Prof Phill Webb
 
 # Additional Comments / Notes
 
