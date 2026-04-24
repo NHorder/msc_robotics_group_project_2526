@@ -1,15 +1,13 @@
-# msc_robotics_group_project_2526
+# Mobile Manipulators in Housing Construction
 # Introduction
 MSC Robotics Group Project 2025-2026
 
+
 Undertaken at Cranfield Univeristy, Uk
+
 
 Project Duration: 20th Feb - 27th Apr
 
-Title: Mobile Manipulators in Housing Construction  
-
-
-Main documents will be shared on teams (A folder may be present here at a later date)  
 
 # Who is involved:
 Developers / Students: 
